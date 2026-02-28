@@ -44,6 +44,28 @@ type Element struct {
 	isHovered bool
 }
 
+func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) *Element {
+	bg := ebiten.NewImage(w, h)
+	bg.Fill(bgColor)
+
+	btn := &Element{
+		XRelativeToParent: relX, YRelativeToParent: relY,
+		Image:   bg,
+		Visible: true,
+	}
+
+	txtImg := ebiten.NewImage(w, h)
+	ebitenutil.DebugPrintAt(txtImg, label, 10, h/2-8)
+
+	// テキストを子要素とする
+	btn.Children = append(btn.Children, &Element{
+		XRelativeToParent: 0, YRelativeToParent: 0,
+		Image:   txtImg,
+		Visible: true,
+	})
+	return btn
+}
+
 func (e *Element) Update(parentX, parentY float64) {
 	if !e.Visible {
 		return
@@ -180,24 +202,90 @@ func (e *Element) isHit(cx, cy, globalX, globalY float64) bool {
 	return cx >= globalX && cx < globalX+float64(w) && cy >= globalY && cy < globalY+float64(h)
 }
 
-func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) *Element {
-	bg := ebiten.NewImage(w, h)
-	bg.Fill(bgColor)
-
-	btn := &Element{
-		XRelativeToParent: relX, YRelativeToParent: relY,
-		Image:   bg,
-		Visible: true,
+func (e *Element) Height() float64 {
+	if e.Image != nil {
+		return float64(e.Image.Bounds().Dy())
 	}
-
-	txtImg := ebiten.NewImage(w, h)
-	ebitenutil.DebugPrintAt(txtImg, label, 10, h/2-8)
-
-	btn.Children = append(btn.Children, &Element{
-		XRelativeToParent: 0, YRelativeToParent: 0,
-		Image:   txtImg,
-		Visible: true,
-	})
-
-	return btn
+	return 0
 }
+
+func (e *Element) Width() float64 {
+	if e.Image != nil {
+		return float64(e.Image.Bounds().Dx())
+	}
+	return 0
+}
+
+func (e *Element) XYLeftOf(target *Element, margin float64, align Alignment) (x, y float64) {
+	x = target.XRelativeToParent - e.Width() - margin
+	y = e.calcVerticalAlign(target, align)
+	return x, y
+}
+
+func (e *Element) XYRightOf(target *Element, margin float64, align Alignment) (x, y float64) {
+	x = target.XRelativeToParent + target.Width() + margin
+	y = e.calcVerticalAlign(target, align)
+	return x, y
+}
+
+func (e *Element) XYAbove(target *Element, margin float64, align Alignment) (x, y float64) {
+	x = e.calcHorizontalAlign(target, align)
+	y = target.YRelativeToParent - e.Height() - margin
+	return x, y
+}
+
+func (e *Element) XYBelow(target *Element, margin float64, align Alignment) (x, y float64) {
+	x = e.calcHorizontalAlign(target, align)
+	y = target.YRelativeToParent + target.Height() + margin
+	return x, y
+}
+
+func (e *Element) calcHorizontalAlign(target *Element, align Alignment) float64 {
+	switch align {
+	case AlignStart:
+		return target.XRelativeToParent
+	case AlignCenter:
+		return target.XRelativeToParent + (target.Width()-e.Width())/2
+	case AlignEnd:
+		return target.XRelativeToParent + target.Width() - e.Width()
+	default:
+		return target.XRelativeToParent
+	}
+}
+
+func (e *Element) calcVerticalAlign(target *Element, align Alignment) float64 {
+	switch align {
+	case AlignStart:
+		return target.YRelativeToParent
+	case AlignCenter:
+		return target.YRelativeToParent + (target.Height()-e.Height())/2
+	case AlignEnd:
+		return target.YRelativeToParent + target.Height() - e.Height()
+	default:
+		return target.YRelativeToParent
+	}
+}
+
+func (e *Element) PlaceRightOf(target *Element, margin float64, align Alignment) {
+	e.XRelativeToParent, e.YRelativeToParent = e.XYRightOf(target, margin, align)
+}
+
+func (e *Element) PlaceLeftOf(target *Element, margin float64, align Alignment) {
+	e.XRelativeToParent, e.YRelativeToParent = e.XYLeftOf(target, margin, align)
+}
+
+func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
+	e.XRelativeToParent, e.YRelativeToParent = e.XYBelow(target, margin, align)
+}
+
+func (e *Element) PlaceAbove(target *Element, margin float64, align Alignment) {
+	e.XRelativeToParent, e.YRelativeToParent = e.XYAbove(target, margin, align)
+}
+
+type Alignment int
+
+const (
+	AlignStart  Alignment = iota // 上端 または 左端
+	AlignCenter                  // 中央
+	AlignEnd                     // 下端 または 右端
+)

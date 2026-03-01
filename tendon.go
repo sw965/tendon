@@ -48,11 +48,11 @@ type Element struct {
 }
 
 func NewElement() *Element {
-	return &Element{
-		WidthScale:  1.0,
-		HeightScale: 1.0,
-		Visible:     true,
+	e := &Element{
+		Visible: true,
 	}
+	e.SetScale(1.0)
+	return e
 }
 
 func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) *Element {
@@ -73,6 +73,11 @@ func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) 
 	btn.Children = append(btn.Children, textElem)
 
 	return btn
+}
+
+func (e *Element) SetScale(s float64) {
+	e.WidthScale = s
+	e.HeightScale = s
 }
 
 func (e *Element) Update(parentX, parentY float64) {

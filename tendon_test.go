@@ -37,11 +37,20 @@ func TestInteractive(t *testing.T) {
 		tendon.NewButton(25, 25, 50, 50, "WTF", color.RGBA{150, 20, 20, 255}),
 	}
 
+	for _, e := range roots {
+		e.HeightScale = 0.9
+		e.WidthScale = 0.9
+		for _, c := range e.Children {
+			c.HeightScale = 0.9
+			c.WidthScale = 0.9
+		}
+	}
+
 	for i := 1; i < len(roots); i++ {
 		roots[i].PlaceRightOf(roots[i-1], 10.0, tendon.AlignCenter)
 	}
 
-	game := &TestGame{elements:roots}
+	game := &TestGame{elements: roots}
 	ebiten.SetWindowSize(640, 480)
 	if err := ebiten.RunGame(game); err != nil {
 		t.Fatal(err)

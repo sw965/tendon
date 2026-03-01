@@ -12,24 +12,27 @@ type Element struct {
 	XRelativeToParent float64
 	YRelativeToParent float64
 
-	Image   *ebiten.Image
-	Visible bool
+	Image       *ebiten.Image
+	WidthScale  float64
+	HeightScale float64
+	Filter      ebiten.Filter
+	Visible     bool
 
-	OnLeftClick   func(e *Element)
-	OnLeftPressed func(e *Element)
+	OnLeftClick    func(e *Element)
+	OnLeftPressed  func(e *Element)
 	OnLeftReleased func(e *Element)
 
-	OnRightClick  func(e *Element)
-	OnRightPressed func(e *Element)
+	OnRightClick    func(e *Element)
+	OnRightPressed  func(e *Element)
 	OnRightReleased func(e *Element)
 
-	OnMiddleClick func(e *Element)
-	OnMiddlePressed func(e *Element)
+	OnMiddleClick    func(e *Element)
+	OnMiddlePressed  func(e *Element)
 	OnMiddleReleased func(e *Element)
 
-	OnMouseEnter  func(e *Element)
-	OnMouseLeave  func(e *Element)
-	OnUpdate      func(e *Element)
+	OnMouseEnter func(e *Element)
+	OnMouseLeave func(e *Element)
+	OnUpdate     func(e *Element)
 
 	// ドラッグ機能
 	Draggable   bool
@@ -44,25 +47,31 @@ type Element struct {
 	isHovered bool
 }
 
+func NewElement() *Element {
+	return &Element{
+		WidthScale:  1.0,
+		HeightScale: 1.0,
+		Visible:     true,
+	}
+}
+
 func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) *Element {
 	bg := ebiten.NewImage(w, h)
 	bg.Fill(bgColor)
 
-	btn := &Element{
-		XRelativeToParent: relX, YRelativeToParent: relY,
-		Image:   bg,
-		Visible: true,
-	}
+	btn := NewElement()
+	btn.XRelativeToParent = relX
+	btn.YRelativeToParent = relY
+	btn.Image = bg
 
 	txtImg := ebiten.NewImage(w, h)
 	ebitenutil.DebugPrintAt(txtImg, label, 10, h/2-8)
 
-	// テキストを子要素とする
-	btn.Children = append(btn.Children, &Element{
-		XRelativeToParent: 0, YRelativeToParent: 0,
-		Image:   txtImg,
-		Visible: true,
-	})
+	textElem := NewElement()
+	textElem.Image = txtImg
+	textElem.Filter = ebiten.FilterLinear
+	btn.Children = append(btn.Children, textElem)
+
 	return btn
 }
 
@@ -71,7 +80,7 @@ func (e *Element) Update(parentX, parentY float64) {
 		return
 	}
 
-	// 自分の画面上の絶対位置（グローバル座標）
+	// 自分の画面上の絶対位置
 	absX := parentX + e.XRelativeToParent
 	absY := parentY + e.YRelativeToParent
 
@@ -108,7 +117,7 @@ func (e *Element) Update(parentX, parentY float64) {
 		if e.OnMouseEnter != nil {
 			e.OnMouseEnter(e)
 		}
-	// 重なったカーソルが範囲外に移動する度に、処理を実行する
+		// 重なったカーソルが範囲外に移動する度に、処理を実行する
 	} else if !isCursorInsideOrDragging && e.isHovered {
 		e.isHovered = false
 		if e.OnMouseLeave != nil {
@@ -183,7 +192,9 @@ func (e *Element) DrawAt(screen *ebiten.Image, parentX, parentY float64) {
 
 	if e.Image != nil {
 		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Scale(e.WidthScale, e.HeightScale)
 		op.GeoM.Translate(absX, absY)
+		op.Filter = e.Filter
 		screen.DrawImage(e.Image, op)
 	}
 
@@ -198,20 +209,20 @@ func (e *Element) isHit(cx, cy, globalX, globalY float64) bool {
 	if e.Image == nil {
 		return false
 	}
-	w, h := e.Image.Bounds().Dx(), e.Image.Bounds().Dy()
-	return cx >= globalX && cx < globalX+float64(w) && cy >= globalY && cy < globalY+float64(h)
-}
-
-func (e *Element) Height() float64 {
-	if e.Image != nil {
-		return float64(e.Image.Bounds().Dy())
-	}
-	return 0
+	w, h := e.Width(), e.Height()
+	return cx >= globalX && cx < globalX+w && cy >= globalY && cy < globalY+h
 }
 
 func (e *Element) Width() float64 {
 	if e.Image != nil {
-		return float64(e.Image.Bounds().Dx())
+		return float64(e.Image.Bounds().Dx()) * e.WidthScale
+	}
+	return 0
+}
+
+func (e *Element) Height() float64 {
+	if e.Image != nil {
+		return float64(e.Image.Bounds().Dy()) * e.HeightScale
 	}
 	return 0
 }

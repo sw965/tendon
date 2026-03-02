@@ -6,9 +6,14 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image/color"
 	"slices"
+	"fmt"
 )
 
+var DebugMode = false
+
 type Element struct {
+	Name string
+
 	// 親の左上を基準とした相対座標
 	XRelativeToParent float64
 	YRelativeToParent float64
@@ -47,6 +52,7 @@ type Element struct {
 	DragDeltaX  float64
 	DragDeltaY  float64
 
+	// カプセル化の検討
 	Children Elements
 	Parent   *Element
 
@@ -108,7 +114,7 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 	}
 
 	isTarget := (e == target)
-	isTargetAndEnabled := isTarget && e.Enabled
+	isTargetAndEnabled := isTarget && e.IsEnabled()
 
 	// 自分の画面上の絶対位置を計算する
 	// 親要素の座標(parentX, parentY)が動けば、子要素の絶対座標も動く
@@ -118,7 +124,12 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 	cursorX, cursorY := ebiten.CursorPosition()
 	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
 
-	if e.Draggable {
+	isCtrlDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyControl)
+	isAltDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyAlt)
+	isDebugDragging := isCtrlDragging || isAltDragging
+	isDraggable := e.Draggable || isDebugDragging
+
+	if isDraggable {
 		// ドラッグ開始
 		if isTargetAndEnabled && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			e.isDragging = true
@@ -148,6 +159,10 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 				e.isDragging = false
 				e.DragDeltaX = 0
 				e.DragDeltaY = 0
+
+				if DebugMode {
+					fmt.Printf("Element [%s] -> XRelativeToParent: %.2f, YRelativeToParent: %.2f\n", e.Name, e.XRelativeToParent, e.YRelativeToParent)
+				}
 			}
 		}
 	}
@@ -166,7 +181,7 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 		}
 	}
 
-	if isTargetAndEnabled {
+	if isTargetAndEnabled && !isDebugDragging {
 		// 左クリック関連
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && e.OnLeftClick != nil {
 			e.OnLeftClick(e)
@@ -262,7 +277,11 @@ func (e *Element) Contains(absX, absY, px, py float64) bool {
 }
 
 func (e *Element) FindDeepestFromPoint(parentX, parentY, px, py float64) *Element {
-	if !e.Visible || e.PassThrough {
+	if !e.Visible {
+		return nil
+	}
+
+	if e.IsPassThrough() {
 		return nil
 	}
 
@@ -381,6 +400,16 @@ func (e *Element) PlaceAbove(target *Element, margin float64, align Alignment) {
 func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
 	absX, absY := e.AbsPosBelow(target, margin, align)
 	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) IsEnabled() bool {
+	isDebugDragging := DebugMode && (ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyAlt))
+	return e.Enabled || isDebugDragging
+}
+
+func (e *Element) IsPassThrough() bool {
+	isDebugDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyAlt)
+	return e.PassThrough && !isDebugDragging
 }
 
 type Elements []*Element

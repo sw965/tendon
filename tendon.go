@@ -47,8 +47,9 @@ type Element struct {
 	DragDeltaX  float64
 	DragDeltaY  float64
 
-	// 子要素
 	Children Elements
+	Parent   *Element
+
 	// 内部状態
 	isHovered bool
 }
@@ -78,7 +79,7 @@ func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) 
 	textElem.Image = txtImg
 	textElem.Filter = ebiten.FilterLinear
 	textElem.PassThrough = true
-	btn.Children = append(btn.Children, textElem)
+	btn.AppendChild(textElem)
 
 	return btn
 }
@@ -86,6 +87,19 @@ func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) 
 func (e *Element) SetScale(s float64) {
 	e.WidthScale = s
 	e.HeightScale = s
+}
+
+func (e *Element) AppendChild(child *Element) {
+	child.Parent = e
+	e.Children = append(e.Children, child)
+}
+
+func (e *Element) AbsPos() (x, y float64) {
+	if e.Parent == nil {
+		return e.XRelativeToParent, e.YRelativeToParent
+	}
+	px, py := e.Parent.AbsPos()
+	return px + e.XRelativeToParent, py + e.YRelativeToParent
 }
 
 func (e *Element) Update(parentX, parentY float64, target *Element) {
@@ -286,70 +300,87 @@ func (e *Element) Height() float64 {
 	return 0
 }
 
-func (e *Element) XYLeftOf(target *Element, margin float64, align Alignment) (x, y float64) {
-	x = target.XRelativeToParent - e.Width() - margin
-	y = e.calcVerticalAlign(target, align)
-	return x, y
+func (e *Element) AbsPosLeftOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
+	tx, ty := target.AbsPos()
+	absX = tx - e.Width() - margin
+	absY = e.calcVerticalAlign(ty, target.Height(), align)
+	return absX, absY
 }
 
-func (e *Element) XYRightOf(target *Element, margin float64, align Alignment) (x, y float64) {
-	x = target.XRelativeToParent + target.Width() + margin
-	y = e.calcVerticalAlign(target, align)
-	return x, y
+func (e *Element) AbsPosRightOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
+	tx, ty := target.AbsPos()
+	absX = tx + target.Width() + margin
+	absY = e.calcVerticalAlign(ty, target.Height(), align)
+	return absX, absY
 }
 
-func (e *Element) XYAbove(target *Element, margin float64, align Alignment) (x, y float64) {
-	x = e.calcHorizontalAlign(target, align)
-	y = target.YRelativeToParent - e.Height() - margin
-	return x, y
+func (e *Element) AbsPosAbove(target *Element, margin float64, align Alignment) (absX, absY float64) {
+	tx, ty := target.AbsPos()
+	absX = e.calcHorizontalAlign(tx, target.Width(), align)
+	absY = ty - e.Height() - margin
+	return absX, absY
 }
 
-func (e *Element) XYBelow(target *Element, margin float64, align Alignment) (x, y float64) {
-	x = e.calcHorizontalAlign(target, align)
-	y = target.YRelativeToParent + target.Height() + margin
-	return x, y
+func (e *Element) AbsPosBelow(target *Element, margin float64, align Alignment) (absX, absY float64) {
+	tx, ty := target.AbsPos()
+	absX = e.calcHorizontalAlign(tx, target.Width(), align)
+	absY = ty + target.Height() + margin
+	return absX, absY
 }
 
-func (e *Element) calcHorizontalAlign(target *Element, align Alignment) float64 {
+func (e *Element) AbsPosToRelPosToParent(absX, absY float64) (relX, relY float64) {
+	px, py := 0.0, 0.0
+	if e.Parent != nil {
+		// 自分の親 (e.Parent) の絶対座標
+		px, py = e.Parent.AbsPos()
+	}
+	return absX - px, absY - py
+}
+
+func (e *Element) calcHorizontalAlign(targetAbsX, targetWidth float64, align Alignment) float64 {
 	switch align {
 	case AlignStart:
-		return target.XRelativeToParent
+		return targetAbsX
 	case AlignCenter:
-		return target.XRelativeToParent + (target.Width()-e.Width())/2
+		return targetAbsX + (targetWidth-e.Width())/2
 	case AlignEnd:
-		return target.XRelativeToParent + target.Width() - e.Width()
+		return targetAbsX + targetWidth - e.Width()
 	default:
-		return target.XRelativeToParent
+		return targetAbsX
 	}
 }
 
-func (e *Element) calcVerticalAlign(target *Element, align Alignment) float64 {
+func (e *Element) calcVerticalAlign(targetAbsY, targetHeight float64, align Alignment) float64 {
 	switch align {
 	case AlignStart:
-		return target.YRelativeToParent
+		return targetAbsY
 	case AlignCenter:
-		return target.YRelativeToParent + (target.Height()-e.Height())/2
+		return targetAbsY + (targetHeight-e.Height())/2
 	case AlignEnd:
-		return target.YRelativeToParent + target.Height() - e.Height()
+		return targetAbsY + targetHeight - e.Height()
 	default:
-		return target.YRelativeToParent
+		return targetAbsY
 	}
-}
-
-func (e *Element) PlaceRightOf(target *Element, margin float64, align Alignment) {
-	e.XRelativeToParent, e.YRelativeToParent = e.XYRightOf(target, margin, align)
 }
 
 func (e *Element) PlaceLeftOf(target *Element, margin float64, align Alignment) {
-	e.XRelativeToParent, e.YRelativeToParent = e.XYLeftOf(target, margin, align)
+	absX, absY := e.AbsPosLeftOf(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
-func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
-	e.XRelativeToParent, e.YRelativeToParent = e.XYBelow(target, margin, align)
+func (e *Element) PlaceRightOf(target *Element, margin float64, align Alignment) {
+	absX, absY := e.AbsPosRightOf(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
 func (e *Element) PlaceAbove(target *Element, margin float64, align Alignment) {
-	e.XRelativeToParent, e.YRelativeToParent = e.XYAbove(target, margin, align)
+	absX, absY := e.AbsPosAbove(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
+	absX, absY := e.AbsPosBelow(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
 type Elements []*Element

@@ -5,6 +5,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image/color"
+	"slices"
 )
 
 type Element struct {
@@ -16,7 +17,10 @@ type Element struct {
 	WidthScale  float64
 	HeightScale float64
 	Filter      ebiten.Filter
-	Visible     bool
+	Z           int
+	Visible     bool // trueなら描写される
+	Enabled     bool // trueなら操作可能
+	PassThrough bool
 
 	OnLeftClick    func(e *Element)
 	OnLeftPressed  func(e *Element)
@@ -32,17 +36,19 @@ type Element struct {
 
 	OnMouseEnter func(e *Element)
 	OnMouseLeave func(e *Element)
+	OnDrag       func(e *Element)
 	OnUpdate     func(e *Element)
 
-	// ドラッグ機能
 	Draggable   bool
+	ManualDrag  bool
 	isDragging  bool
 	dragOffsetX float64
 	dragOffsetY float64
+	DragDeltaX  float64
+	DragDeltaY  float64
 
 	// 子要素
-	Children []*Element
-
+	Children Elements
 	// 内部状態
 	isHovered bool
 }
@@ -50,6 +56,7 @@ type Element struct {
 func NewElement() *Element {
 	e := &Element{
 		Visible: true,
+		Enabled: true,
 	}
 	e.SetScale(1.0)
 	return e
@@ -70,6 +77,7 @@ func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) 
 	textElem := NewElement()
 	textElem.Image = txtImg
 	textElem.Filter = ebiten.FilterLinear
+	textElem.PassThrough = true
 	btn.Children = append(btn.Children, textElem)
 
 	return btn
@@ -80,57 +88,71 @@ func (e *Element) SetScale(s float64) {
 	e.HeightScale = s
 }
 
-func (e *Element) Update(parentX, parentY float64) {
+func (e *Element) Update(parentX, parentY float64, target *Element) {
 	if !e.Visible {
 		return
 	}
 
-	// 自分の画面上の絶対位置
+	isTarget := (e == target)
+	isTargetAndEnabled := isTarget && e.Enabled
+
+	// 自分の画面上の絶対位置を計算する
+	// 親要素の座標(parentX, parentY)が動けば、子要素の絶対座標も動く
 	absX := parentX + e.XRelativeToParent
 	absY := parentY + e.YRelativeToParent
 
 	cursorX, cursorY := ebiten.CursorPosition()
 	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
-	// 引数の順番を検討
-	isCursorInside := e.isHit(cursorXf, cursorYf, absX, absY)
 
 	if e.Draggable {
-		if isCursorInside && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		// ドラッグ開始
+		if isTargetAndEnabled && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			e.isDragging = true
 			e.dragOffsetX = cursorXf - absX
 			e.dragOffsetY = cursorYf - absY
 		}
 
-		// ドラッグ中
 		if e.isDragging {
-			e.XRelativeToParent = (cursorXf - e.dragOffsetX) - parentX
-			e.YRelativeToParent = (cursorYf - e.dragOffsetY) - parentY
+			oldX, oldY := e.XRelativeToParent, e.YRelativeToParent
+			targetX := (cursorXf - e.dragOffsetX) - parentX
+			targetY := (cursorYf - e.dragOffsetY) - parentY
+			e.DragDeltaX = targetX - oldX
+			e.DragDeltaY = targetY - oldY
 
-			// 左クリックを離したらドラッグ終了
+			// 自動で動かす
+			if !e.ManualDrag {
+				e.XRelativeToParent = targetX
+				e.YRelativeToParent = targetY
+			}
+
+			if e.OnDrag != nil {
+				e.OnDrag(e)
+			}
+
+			// 離したら終了
 			if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 				e.isDragging = false
+				e.DragDeltaX = 0
+				e.DragDeltaY = 0
 			}
 		}
 	}
 
-	// カーソルが早く動いてホバー判定が外れないように、ドラッグ中はホバー中と見なす
-	isCursorInsideOrDragging := isCursorInside || e.isDragging
-
-	// 範囲外だったカーソルが重なる度に、処理を実行する
-	if isCursorInsideOrDragging && !e.isHovered {
+	// 範囲外だったカーソルが重なる度に、処理を実行する (!e.isHoverdであれば、直前のフレームは範囲外であった事を意味する)
+	if isTargetAndEnabled && !e.isHovered {
 		e.isHovered = true
 		if e.OnMouseEnter != nil {
 			e.OnMouseEnter(e)
 		}
-		// 重なったカーソルが範囲外に移動する度に、処理を実行する
-	} else if !isCursorInsideOrDragging && e.isHovered {
+		// 重なったカーソルが範囲外に移動する度に、処理を実行する (e.isHoverdであれば、直前のフレームは範囲内であった事を意味する)
+	} else if !isTargetAndEnabled && e.isHovered {
 		e.isHovered = false
 		if e.OnMouseLeave != nil {
 			e.OnMouseLeave(e)
 		}
 	}
 
-	if isCursorInside {
+	if isTargetAndEnabled {
 		// 左クリック関連
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && e.OnLeftClick != nil {
 			e.OnLeftClick(e)
@@ -176,9 +198,13 @@ func (e *Element) Update(parentX, parentY float64) {
 		e.OnUpdate(e)
 	}
 
+	// ドラッグ等で相対座標が変更された可能性があるため、子要素に渡す前に絶対座標を再計算する
+	absX = parentX + e.XRelativeToParent
+	absY = parentY + e.YRelativeToParent
+
 	// 子要素の更新
 	for _, child := range e.Children {
-		child.Update(absX, absY)
+		child.Update(absX, absY, target)
 	}
 }
 
@@ -192,9 +218,12 @@ func (e *Element) DrawAt(screen *ebiten.Image, parentX, parentY float64) {
 		return
 	}
 
+	// 自分の画面上の絶対位置を計算する
+	// 親要素の座標(parentX, parentY)が動けば、子要素の絶対座標も動く
 	absX := parentX + e.XRelativeToParent
 	absY := parentY + e.YRelativeToParent
 
+	// 親要素のZに関係なく子要素よりも先に描写する (重なる場合、親要素は子要素よりも下に描写される)
 	if e.Image != nil {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(e.WidthScale, e.HeightScale)
@@ -203,19 +232,44 @@ func (e *Element) DrawAt(screen *ebiten.Image, parentX, parentY float64) {
 		screen.DrawImage(e.Image, op)
 	}
 
+	// 子要素同士では、Zの小さい順から描写する
+	e.Children.SortByZAsc()
 	for _, child := range e.Children {
 		child.DrawAt(screen, absX, absY)
 	}
 }
 
-// isHit は絶対座標(globalX, globalY)を基準に当たり判定を行います
-// 後で命名や引数の順番を検討する
-func (e *Element) isHit(cx, cy, globalX, globalY float64) bool {
+func (e *Element) Contains(absX, absY, px, py float64) bool {
 	if e.Image == nil {
 		return false
 	}
 	w, h := e.Width(), e.Height()
-	return cx >= globalX && cx < globalX+w && cy >= globalY && cy < globalY+h
+	return px >= absX && px < absX+w && py >= absY && py < absY+h
+}
+
+func (e *Element) FindDeepestFromPoint(parentX, parentY, px, py float64) *Element {
+	if !e.Visible || e.PassThrough {
+		return nil
+	}
+
+	// 自分の画面上の絶対位置を計算する
+	// 親要素の座標(parentX, parentY)が動けば、子要素の絶対座標も動く
+	absX := parentX + e.XRelativeToParent
+	absY := parentY + e.YRelativeToParent
+
+	// 子要素から先に判定する (子要素は親要素よりも先に描写されるため)
+	e.Children.SortByZDesc() // Zが大きい順に並び変える (手前に描写される順)
+	for _, child := range e.Children {
+		if target := child.FindDeepestFromPoint(absX, absY, px, py); target != nil {
+			return target
+		}
+	}
+
+	// 子要素がヒットしなかったら、自分自身を判定する
+	if e.Contains(absX, absY, px, py) {
+		return e
+	}
+	return nil
 }
 
 func (e *Element) Width() float64 {
@@ -296,6 +350,62 @@ func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
 
 func (e *Element) PlaceAbove(target *Element, margin float64, align Alignment) {
 	e.XRelativeToParent, e.YRelativeToParent = e.XYAbove(target, margin, align)
+}
+
+type Elements []*Element
+
+func (es Elements) FindDeepestFromDragging() *Element {
+	for _, e := range es {
+		if e.isDragging {
+			return e
+		}
+		if found := e.Children.FindDeepestFromDragging(); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func (es Elements) SortByZAsc() {
+	slices.SortFunc(es, func(a, b *Element) int {
+		return a.Z - b.Z
+	})
+}
+
+func (es Elements) SortByZDesc() {
+	slices.SortFunc(es, func(a, b *Element) int {
+		return b.Z - a.Z
+	})
+}
+
+func (es Elements) Update(parentX, parentY float64) {
+	cursorX, cursorY := ebiten.CursorPosition()
+	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
+
+	// ドラッグ中の要素があれば、その要素を最優先ターゲットとする
+	target := es.FindDeepestFromDragging()
+	es.SortByZDesc()
+
+	if target == nil {
+		for _, e := range es {
+			if found := e.FindDeepestFromPoint(parentX, parentY, cursorXf, cursorYf); found != nil {
+				target = found
+				break
+			}
+		}
+	}
+
+	for _, e := range es {
+		e.Update(parentX, parentY, target)
+	}
+}
+
+func (es Elements) Draw(screen *ebiten.Image) {
+	// Zが小さい順から描写する
+	es.SortByZAsc()
+	for _, e := range es {
+		e.Draw(screen)
+	}
 }
 
 type Alignment int

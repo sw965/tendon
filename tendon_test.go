@@ -14,6 +14,9 @@ type TestGame struct {
 }
 
 func (g *TestGame) Update() error {
+	// ★ 追加: Tendon全体のグローバル更新（キー入力監視など）を毎フレーム実行する
+	tendon.GlobalUpdate()
+
 	g.elements.Update(0, 0)
 	return nil
 }
@@ -28,22 +31,51 @@ func (g *TestGame) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func TestInteractive(t *testing.T) {
-	// ★ 追加: デバッグモードをONにする
+	// デバッグモードをONにする
 	tendon.DebugMode = true
 
+	// 1. コマンドプロンプトの作成と設定
+	// 画面下部に配置する (幅640, 高さ40)
+	prompt := tendon.NewCommandPrompt(640, 40)
+	prompt.XRelativeToParent = 0
+	prompt.YRelativeToParent = 480 - 40
+	
+	// コマンドが確定（Enter）された時の挙動を定義
+	prompt.OnExecute = func(command string, target *tendon.Element) {
+		if target == nil {
+			fmt.Printf("🚀 グローバルコマンド実行: %s\n", command)
+		} else {
+			fmt.Printf("Targeted 🎯 要素 [%s] へのコマンド実行: %s\n", target.Name, command)
+			// ここで command の内容に応じて target.CenterInScreen(640, 480) などを呼ぶ処理を追加できる
+		}
+	}
+
+	// 2. グローバルなキー入力を監視してプロンプトを開く
+	tendon.OnKeyJustPressed = func(key ebiten.Key) {
+		if key == ebiten.KeySlash {
+			// まだ開いていなければ、グローバル(target=nil)としてプロンプトを表示
+			if !prompt.Visible {
+				prompt.Open(nil)
+			}
+		}
+	}
+
 	fmt.Println("=================================================")
-	fmt.Println("デバッグモードがONになっています。")
+	fmt.Println("コマンドプロンプト機能が有効です。")
 	fmt.Println("【テスト方法】")
-	fmt.Println("Ctrlキーを押しながら、赤い子ボタンや右側のグレーのボタンを")
-	fmt.Println("ドラッグ＆ドロップしてください。")
-	fmt.Println("離した瞬間にコンソールに座標が出力されれば成功です！")
+	fmt.Println("1. [/] キーを押すと、画面下にコマンドプロンプトが開きます。")
+	fmt.Println("2. 文字を入力して Enter を押すとコンソールに内容が出ます。")
+	fmt.Println("3. 青いパネルを【右クリック】すると、その要素専用のプロンプトが開きます。")
 	fmt.Println("=================================================")
 
-	// 1. 大きな「親パネル」
+	// 3. 大きな「親パネル」
 	panel := tendon.NewButton(50, 50, 300, 300, "Parent Panel", color.RGBA{80, 80, 150, 255})
 	panel.Z = 1
 	panel.Draggable = true
-	panel.Name = "ParentPanel" // ★ 追加: 要素に名前をつける
+	panel.Name = "ParentPanel"
+	
+	// 初期状態で画面中央に配置する
+	panel.CenterInScreen(640, 480)
 
 	panel.OnMouseEnter = func(e *tendon.Element) {
 		fmt.Println("🟦 親パネルにマウスが【入りました】")
@@ -52,9 +84,14 @@ func TestInteractive(t *testing.T) {
 		fmt.Println("🟦 親パネルからマウスが【出ました】")
 	}
 
-	// 2. パネルの中に入れる「子ボタン」（Draggableの指定なし = 本来は動かせない）
+	// ★ 追加: 右クリックでこの要素をターゲットにしたプロンプトを開く
+	panel.OnRightClick = func(e *tendon.Element) {
+		prompt.Open(e)
+	}
+
+	// 4. パネルの中に入れる「子ボタン」
 	childBtn := tendon.NewButton(100, 150, 100, 50, "Child Btn", color.RGBA{200, 80, 80, 255})
-	childBtn.Name = "ChildButton" // ★ 追加: 要素に名前をつける
+	childBtn.Name = "ChildButton"
 
 	childBtn.OnMouseEnter = func(e *tendon.Element) {
 		fmt.Println("  🟥 子ボタンにマウスが【入りました】")
@@ -66,20 +103,20 @@ func TestInteractive(t *testing.T) {
 		fmt.Println("【確認】子ボタンがクリックされました！")
 	}
 
-	// 3. パネルの子要素として登録（※修正: 新しく作ったAppendChildを使う）
 	panel.AppendChild(childBtn)
 
-	// 4. もう一つの要素（Draggableの指定なし = 本来は動かせない）
+	// 5. もう一つの要素
 	otherElem := tendon.NewButton(400, 50, 100, 100, "Other", color.RGBA{100, 100, 100, 255})
 	otherElem.Z = 2
-	otherElem.Name = "OtherElement" // ★ 追加: 要素に名前をつける
+	otherElem.Name = "OtherElement"
 
+	// 6. ゲームの実行（プロンプトのElementも忘れずに追加する）
 	game := &TestGame{
-		elements: tendon.Elements{panel, otherElem},
+		elements: tendon.Elements{panel, otherElem, prompt.Element},
 	}
 
 	ebiten.SetWindowSize(640, 480)
-	ebiten.SetWindowTitle("Tendon Debug Mode Test")
+	ebiten.SetWindowTitle("Tendon Command Prompt Test")
 
 	if err := ebiten.RunGame(game); err != nil {
 		t.Fatal(err)

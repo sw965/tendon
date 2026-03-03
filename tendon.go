@@ -6,10 +6,27 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image/color"
 	"slices"
-	"fmt"
 )
 
-var DebugMode = false
+var (
+	OnGlobalUpdate   func()
+	OnKeyJustPressed func(key ebiten.Key)
+)
+
+var justPressedKeys []ebiten.Key
+
+func GlobalUpdate() {
+	if OnGlobalUpdate != nil {
+		OnGlobalUpdate()
+	}
+
+	if OnKeyJustPressed != nil {
+		justPressedKeys = inpututil.AppendJustPressedKeys(justPressedKeys[:0])
+		for _, key := range justPressedKeys {
+			OnKeyJustPressed(key)
+		}
+	}
+}
 
 type Element struct {
 	Name string
@@ -114,7 +131,7 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 	}
 
 	isTarget := (e == target)
-	isTargetAndEnabled := isTarget && e.IsEnabled()
+	isTargetAndEnabled := isTarget && e.Enabled
 
 	// 自分の画面上の絶対位置を計算する
 	// 親要素の座標(parentX, parentY)が動けば、子要素の絶対座標も動く
@@ -124,12 +141,7 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 	cursorX, cursorY := ebiten.CursorPosition()
 	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
 
-	isCtrlDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyControl)
-	isAltDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyAlt)
-	isDebugDragging := isCtrlDragging || isAltDragging
-	isDraggable := e.Draggable || isDebugDragging
-
-	if isDraggable {
+	if e.Draggable {
 		// ドラッグ開始
 		if isTargetAndEnabled && inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 			e.isDragging = true
@@ -159,9 +171,25 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 				e.isDragging = false
 				e.DragDeltaX = 0
 				e.DragDeltaY = 0
+			}
+		}
 
-				if DebugMode {
-					fmt.Printf("Element [%s] -> XRelativeToParent: %.2f, YRelativeToParent: %.2f\n", e.Name, e.XRelativeToParent, e.YRelativeToParent)
+		// デバックモード中のマウスホイールによる拡大・縮小
+		if isTargetAndEnabled {
+			_, wheelY := ebiten.Wheel()
+			if wheelY != 0 {
+				// ホイール1回転あたりの拡縮率
+				scaleDiff := wheelY * 0.01
+
+				e.WidthScale += scaleDiff
+				e.HeightScale += scaleDiff
+
+				// 縮小しすぎて見えなくなる（またはマイナスになる）のを防ぐ
+				if e.WidthScale < 0.1 {
+					e.WidthScale = 0.1
+				}
+				if e.HeightScale < 0.1 {
+					e.HeightScale = 0.1
 				}
 			}
 		}
@@ -181,7 +209,7 @@ func (e *Element) Update(parentX, parentY float64, target *Element) {
 		}
 	}
 
-	if isTargetAndEnabled && !isDebugDragging {
+	if isTargetAndEnabled {
 		// 左クリック関連
 		if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && e.OnLeftClick != nil {
 			e.OnLeftClick(e)
@@ -281,7 +309,7 @@ func (e *Element) FindDeepestFromPoint(parentX, parentY, px, py float64) *Elemen
 		return nil
 	}
 
-	if e.IsPassThrough() {
+	if e.PassThrough {
 		return nil
 	}
 
@@ -402,16 +430,17 @@ func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
 	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
-func (e *Element) IsEnabled() bool {
-	isDebugDragging := DebugMode && (ebiten.IsKeyPressed(ebiten.KeyControl) || ebiten.IsKeyPressed(ebiten.KeyAlt))
-	return e.Enabled || isDebugDragging
+func (e *Element) CenterInScreen(screenWidth, screenHeight float64) {
+	// 画面の中央に配置するための絶対座標を計算
+	absX := (screenWidth - e.Width()) / 2
+	absY := (screenHeight - e.Height()) / 2
+
+	// 絶対座標から、現在の親に対する相対座標に変換してセットする
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
-func (e *Element) IsPassThrough() bool {
-	isDebugDragging := DebugMode && ebiten.IsKeyPressed(ebiten.KeyAlt)
-	return e.PassThrough && !isDebugDragging
-}
-
+// 重なっている要素は一番上しか反応しないように設計されている
+// ただしPassThroughの要素は無視される
 type Elements []*Element
 
 func (es Elements) FindDeepestFromDragging() *Element {

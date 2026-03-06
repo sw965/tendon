@@ -3,120 +3,123 @@ package tendon_test
 import (
 	"fmt"
 	"image/color"
+	_ "image/jpeg"
+	_ "image/png"
 	"testing"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/sw965/tendon"
 )
 
-type TestGame struct {
+const (
+	MonsterCardPath = "C:/Users/rayze/Desktop/img/Dark Magician Girl.jpg"
+)
+
+type ScaleTestGame struct {
 	elements tendon.Elements
+	hitBuf   tendon.Elements
+	dragBuf  tendon.Elements
 }
 
-func (g *TestGame) Update() error {
-	// ★ 追加: Tendon全体のグローバル更新（キー入力監視など）を毎フレーム実行する
-	tendon.GlobalUpdate()
+func (g *ScaleTestGame) Update() error {
+	// --- スケールのテスト操作 ---
+	// Ctrl + ホイールで「全ての要素の親」である grid のスケールを操作
+	if ebiten.IsKeyPressed(ebiten.KeyControlLeft) || ebiten.IsKeyPressed(ebiten.KeyControlRight) {
+		_, dy := ebiten.Wheel()
+		if dy != 0 && len(g.elements) > 0 {
+			root := g.elements[0]
+			newScale := root.WidthScale + dy*0.1
+			if newScale < 0.1 {
+				newScale = 0.1
+			}
+			root.SetScale(newScale)
+			fmt.Printf("Parent Scale: %.2f\n", newScale)
+		}
+	}
 
-	g.elements.Update(0, 0)
+	// 各要素の状態更新
+	for _, e := range g.elements {
+		e.Update()
+	}
+
+	// 当たり判定
+	g.hitBuf = g.hitBuf[:0]
+	cx, cy := ebiten.CursorPosition()
+	g.elements.FindAllHitTest(float64(cx), float64(cy), &g.hitBuf)
+
+	// ホバー状態の更新
+	g.elements.UpdateHover(g.hitBuf)
+
+	// ドラッグ移動の更新
+	g.dragBuf.UpdateDragMove()
+
+	// 左クリック：ドラッグ開始
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && len(g.hitBuf) > 0 {
+		target := g.hitBuf[0]
+		if target.Draggable {
+			target.StartDrag()
+			target.Z = 999
+			g.dragBuf = append(g.dragBuf, target)
+		}
+	}
+
+	// 左クリック離した：ドラッグ終了
+	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+		g.elements.StopAllDrag()
+		g.dragBuf = g.dragBuf[:0]
+	}
+
 	return nil
 }
 
-func (g *TestGame) Draw(screen *ebiten.Image) {
-	screen.Fill(color.RGBA{30, 30, 30, 255})
+func (g *ScaleTestGame) Draw(screen *ebiten.Image) {
+	screen.Fill(color.RGBA{30, 30, 35, 255})
 	g.elements.Draw(screen)
+
+	// 操作説明
+	ebitenutil.DebugPrintAt(screen, "Ctrl + Mouse Wheel: Scale Parent (Grid)", 10, 10)
+	ebitenutil.DebugPrintAt(screen, "Drag Card: Check position consistency", 10, 30)
 }
 
-func (g *TestGame) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return 640, 480
+func (g *ScaleTestGame) Layout(w, h int) (int, int) {
+	return 1280, 720
 }
 
-func TestInteractive(t *testing.T) {
-	// デバッグモードをONにする
-	tendon.DebugMode = true
+func TestScaleConsistency(t *testing.T) {
+	// 1. 親となるグリッドの作成
+	grid := tendon.NewBorderGrid(2, 5, 120, 170, 15, color.RGBA{0, 255, 0, 255}, 2)
+	grid.XRelativeToParent = 100
+	grid.YRelativeToParent = 100
+	grid.Image.Fill(color.RGBA{255, 0, 0, 40}) // 親の領域を赤く可視化
 
-	// 1. コマンドプロンプトの作成と設定
-	// 画面下部に配置する (幅640, 高さ40)
-	prompt := tendon.NewCommandPrompt(640, 40)
-	prompt.XRelativeToParent = 0
-	prompt.YRelativeToParent = 480 - 40
-	
-	// コマンドが確定（Enter）された時の挙動を定義
-	prompt.OnExecute = func(command string, target *tendon.Element) {
-		if target == nil {
-			fmt.Printf("🚀 グローバルコマンド実行: %s\n", command)
-		} else {
-			fmt.Printf("Targeted 🎯 要素 [%s] へのコマンド実行: %s\n", target.Name, command)
-			// ここで command の内容に応じて target.CenterInScreen(640, 480) などを呼ぶ処理を追加できる
-		}
+	img, _, err := ebitenutil.NewImageFromFile(MonsterCardPath)
+	if err != nil {
+		t.Fatalf("画像の読み込み失敗: %v", err)
 	}
 
-	// 2. グローバルなキー入力を監視してプロンプトを開く
-	tendon.OnKeyJustPressed = func(key ebiten.Key) {
-		if key == ebiten.KeySlash {
-			// まだ開いていなければ、グローバル(target=nil)としてプロンプトを表示
-			if !prompt.Visible {
-				prompt.Open(nil)
-			}
-		}
+	// 2. 子要素（カード）の作成
+	card := tendon.NewElement()
+	card.Id = 1
+	card.Image = img
+	card.SetScale(0.1)
+	card.Draggable = true
+
+	// 3. 配置
+	if cell := grid.GetCell(0, 0); cell != nil {
+		cell.AppendChild(card)
+		card.PlaceCenterOf(cell)
 	}
 
-	fmt.Println("=================================================")
-	fmt.Println("コマンドプロンプト機能が有効です。")
-	fmt.Println("【テスト方法】")
-	fmt.Println("1. [/] キーを押すと、画面下にコマンドプロンプトが開きます。")
-	fmt.Println("2. 文字を入力して Enter を押すとコンソールに内容が出ます。")
-	fmt.Println("3. 青いパネルを【右クリック】すると、その要素専用のプロンプトが開きます。")
-	fmt.Println("=================================================")
-
-	// 3. 大きな「親パネル」
-	panel := tendon.NewButton(50, 50, 300, 300, "Parent Panel", color.RGBA{80, 80, 150, 255})
-	panel.Z = 1
-	panel.Draggable = true
-	panel.Name = "ParentPanel"
-	
-	// 初期状態で画面中央に配置する
-	panel.CenterInScreen(640, 480)
-
-	panel.OnMouseEnter = func(e *tendon.Element) {
-		fmt.Println("🟦 親パネルにマウスが【入りました】")
-	}
-	panel.OnMouseLeave = func(e *tendon.Element) {
-		fmt.Println("🟦 親パネルからマウスが【出ました】")
+	game := &ScaleTestGame{
+		elements: tendon.Elements{grid.Element},
+		hitBuf:   make(tendon.Elements, 0, 10),
+		dragBuf:  make(tendon.Elements, 0, 5),
 	}
 
-	// ★ 追加: 右クリックでこの要素をターゲットにしたプロンプトを開く
-	panel.OnRightClick = func(e *tendon.Element) {
-		prompt.Open(e)
-	}
-
-	// 4. パネルの中に入れる「子ボタン」
-	childBtn := tendon.NewButton(100, 150, 100, 50, "Child Btn", color.RGBA{200, 80, 80, 255})
-	childBtn.Name = "ChildButton"
-
-	childBtn.OnMouseEnter = func(e *tendon.Element) {
-		fmt.Println("  🟥 子ボタンにマウスが【入りました】")
-	}
-	childBtn.OnMouseLeave = func(e *tendon.Element) {
-		fmt.Println("  🟥 子ボタンからマウスが【出ました】")
-	}
-	childBtn.OnLeftClick = func(e *tendon.Element) {
-		fmt.Println("【確認】子ボタンがクリックされました！")
-	}
-
-	panel.AppendChild(childBtn)
-
-	// 5. もう一つの要素
-	otherElem := tendon.NewButton(400, 50, 100, 100, "Other", color.RGBA{100, 100, 100, 255})
-	otherElem.Z = 2
-	otherElem.Name = "OtherElement"
-
-	// 6. ゲームの実行（プロンプトのElementも忘れずに追加する）
-	game := &TestGame{
-		elements: tendon.Elements{panel, otherElem, prompt.Element},
-	}
-
-	ebiten.SetWindowSize(640, 480)
-	ebiten.SetWindowTitle("Tendon Command Prompt Test")
+	ebiten.SetWindowSize(1280, 720)
+	ebiten.SetWindowTitle("Tendon Scale Consistency Test")
 
 	if err := ebiten.RunGame(game); err != nil {
 		t.Fatal(err)

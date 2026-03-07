@@ -16,22 +16,22 @@ import (
 //
 // 以下のフラグを組み合わせることで、様々なUIの要件（コンテナ、装飾、無効化など）を実現します。
 //
-//  フラグ名    | 意味           | 描画 | 当たり判定 | 状態更新 | 子要素への影響
-//  ------------|----------------|------|------------|----------|----------------------------------------
-//  Visible     | 可視性         |  ❌  |     ❌     |    ❌    | falseの場合、子要素も全て非表示・判定外になる
-//  Enabled     | 有効/無効      |  ⭕️  |     ⭕️     |    ❌    | falseにしても、子要素のEnabledには影響しない
-//  PassThrough | 当たり判定透過 |  ⭕️  |     ❌     |    ❌    | trueにしても、子要素の当たり判定は通常通り行われる
+//		フラグ名    | 意味           | 描画 | 当たり判定 | 状態更新 | 子要素への影響
+//		------------|----------------|------|------------|----------|----------------------------------------
+//		Visible     | 可視性         |  ❌  |     ❌     |    ❌    | falseの場合、子要素も全て非表示・判定外になる
+//		Enabled     | 有効/無効      |  ⭕️  |     ⭕️     |    ❌    | falseにしても、子要素のEnabledには影響しない
+//		PassThrough | 当たり判定透過 |  ⭕️  |     ❌     |    ❌    | trueにしても、子要素の当たり判定は通常通り行われる
 //
-// - Visible:
-//   要素を完全にツリーから除外したい場合に使用します（例：非表示になったウィンドウ）。
+//	  - Visible:
+//	    要素を完全にツリーから除外したい場合に使用します（例：非表示になったウィンドウ）。
 //
-// - Enabled:
-//   クリック等の対象として「重なり」は検知させたいが、操作は弾きたい場合に使用します。
-//   （例：グレーアウトして押せなくなったボタン）。
+//	  - Enabled:
+//	    クリック等の対象として「重なり」は検知させたいが、操作は弾きたい場合に使用します。
+//	    （例：グレーアウトして押せなくなったボタン）。
 //
-// - PassThrough:
-//   見た目だけで当たり判定を下に貫通させたい場合や、当たり判定計算の負荷を下げたい場合に使用します。
-//   （例：ボタンの上に乗っているテキスト、複数のボタンを並べるための透明なレイアウト用親コンテナ）。
+//	  - PassThrough:
+//	    見た目だけで当たり判定を下に貫通させたい場合や、当たり判定計算の負荷を下げたい場合に使用します。
+//	    （例：ボタンの上に乗っているテキスト、複数のボタンを並べるための透明なレイアウト用親コンテナ）。
 type Element struct {
 	Id                int
 	XRelativeToParent float64
@@ -56,7 +56,7 @@ type Element struct {
 	DragDeltaX  float64
 	DragDeltaY  float64
 
-	isHovered    bool
+	isHovered      bool
 	isJustHoverIn  bool
 	isJustHoverOut bool
 
@@ -257,19 +257,19 @@ func (e *Element) PlaceCenterOf(target *Element) {
 }
 
 func (e *Element) Contains(pointX, pointY float64) bool {
-    if e.Image == nil {
-        return false
-    }
+	if e.Image == nil {
+		return false
+	}
 
 	absX, absY := e.AbsPos()
-    w, h := e.Width(), e.Height()
+	w, h := e.Width(), e.Height()
 
-    isRightOfLeft := pointX >= absX
-    isLeftOfRight := pointX < absX+w
-    isBelowTop    := pointY >= absY
-    isAboveBottom := pointY < absY+h
+	isRightOfLeft := pointX >= absX
+	isLeftOfRight := pointX < absX+w
+	isBelowTop := pointY >= absY
+	isAboveBottom := pointY < absY+h
 
-    return isRightOfLeft && isLeftOfRight && isBelowTop && isAboveBottom
+	return isRightOfLeft && isLeftOfRight && isBelowTop && isAboveBottom
 }
 
 func (e *Element) Overlaps(other *Element) bool {
@@ -286,7 +286,7 @@ func (e *Element) Overlaps(other *Element) bool {
 	isLeftOfBRight := xa < xb+wb
 	isRightOfBLeft := xa+wa > xb
 	isAboveBBottom := ya < yb+hb
-	isBelowBTop    := ya+ha > yb
+	isBelowBTop := ya+ha > yb
 
 	return isLeftOfBRight && isRightOfBLeft && isAboveBBottom && isBelowBTop
 }
@@ -300,7 +300,7 @@ func (e *Element) FindAllFromPoint(pointX, pointY float64, dst *Elements) {
 	// 親よりも子要素を先に判定
 	e.Children.SortByZDesc()
 	for _, child := range e.Children {
-		child.FindAllFromPoint(pointX, pointY, dst) 
+		child.FindAllFromPoint(pointX, pointY, dst)
 	}
 
 	// 最後に自分自身を判定
@@ -457,11 +457,10 @@ func (es Elements) UpdateDragMove() {
 		}
 
 		absWs, absHs := e.AbsScale()
-		targetAbsX := cursorXf - (e.dragOffsetX * absWs)
-		targetAbsY := cursorYf - (e.dragOffsetY * absHs)
-
-		// 目標の絶対座標を、自身の相対座標に変換（ピボットや親のスケールを自動考慮！）
-		toRelX, toRelY := e.AbsPosToRelPosToParent(targetAbsX, targetAbsY)
+		toAbsX := cursorXf - (e.dragOffsetX * absWs)
+		toAbsY := cursorYf - (e.dragOffsetY * absHs)
+		// 目標の絶対座標を、自身の相対座標に変換
+		toRelX, toRelY := e.AbsPosToRelPosToParent(toAbsX, toAbsY)
 
 		e.DragDeltaX = toRelX - e.XRelativeToParent
 		e.DragDeltaY = toRelY - e.YRelativeToParent

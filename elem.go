@@ -194,6 +194,14 @@ func (e *Element) AbsPosCenterOf(target *Element) (absX, absY float64) {
 	return absX, absY
 }
 
+func (e *Element) AbsXInScreenWidth(w float64, align Alignment) float64 {
+	return e.calcHorizontalAlign(0, w, align)
+}
+
+func (e *Element) AbsYInScreenHeight(h float64, align Alignment) float64 {
+	return e.calcVerticalAlign(0, h, align)
+}
+
 func (e *Element) AbsPosToRelPosToParent(absX, absY float64) (relX, relY float64) {
 	parentX, parentY := 0.0, 0.0
 	parentWs, parentHs := 1.0, 1.0

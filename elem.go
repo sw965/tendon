@@ -120,28 +120,42 @@ func (e *Element) SetScale(s float64) {
 	e.HeightScale = s
 }
 
-func (e *Element) AbsScale() (float64, float64) {
+func (e *Element) AbsWidthScale() float64 {
 	if e.Parent == nil {
-		return e.WidthScale, e.HeightScale
+		return e.WidthScale
 	}
-	parentWs, parentHs := e.Parent.AbsScale()
-	return parentWs * e.WidthScale, parentHs * e.HeightScale
+	return e.Parent.AbsWidthScale() * e.WidthScale
 }
 
-func (e *Element) Width() float64 {
+func (e *Element) AbsHeightScale() float64 {
+	if e.Parent == nil {
+		return e.HeightScale
+	}
+	return e.Parent.AbsHeightScale() * e.HeightScale
+}
+
+func (e *Element) BaseWidth() float64 {
 	if e.Image == nil {
 		return 0
 	}
-	absWs, _ := e.AbsScale()
-	return float64(e.Image.Bounds().Dx()) * absWs
+	return float64(e.Image.Bounds().Dx())
 }
 
-func (e *Element) Height() float64 {
+func (e *Element) BaseHeight() float64 {
 	if e.Image == nil {
 		return 0
 	}
-	_, absHs := e.AbsScale()
-	return float64(e.Image.Bounds().Dy()) * absHs
+	return float64(e.Image.Bounds().Dy())
+}
+
+func (e *Element) AbsWidth() float64 {
+	scale := e.AbsWidthScale()
+	return e.BaseWidth() * scale
+}
+
+func (e *Element) AbsHeight() float64 {
+	scale := e.AbsHeightScale()
+	return e.BaseHeight() * scale
 }
 
 func (e *Element) AbsPos() (float64, float64) {
@@ -149,9 +163,9 @@ func (e *Element) AbsPos() (float64, float64) {
 		return e.XRelativeToParent, e.YRelativeToParent
 	}
 	px, py := e.Parent.AbsPos()
-	parentWs, parentHs := e.Parent.AbsScale()
-
-	return px + (e.XRelativeToParent * parentWs), py + (e.YRelativeToParent * parentHs)
+	parentWsc := e.Parent.AbsWidthScale()
+	parentHsc := e.Parent.AbsHeightScale()
+	return px + (e.XRelativeToParent * parentWsc), py + (e.YRelativeToParent * parentHsc)
 }
 
 func (e *Element) AppendChild(child *Element) {
@@ -159,38 +173,52 @@ func (e *Element) AppendChild(child *Element) {
 	e.Children = append(e.Children, child)
 }
 
+func (e *Element) RemoveChild(target *Element) bool {
+	index := slices.Index(e.Children, target)
+	if index == -1 {
+		return false
+	}
+
+	// 子要素の親参照を解除
+	target.Parent = nil
+	
+	// スライスから削除
+	e.Children = slices.Delete(e.Children, index, index+1)
+	return true
+}
+
 func (e *Element) AbsPosLeftOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
 	tx, ty := target.AbsPos()
-	absX = tx - e.Width() - margin
-	absY = e.calcVerticalAlign(ty, target.Height(), align)
+	absX = tx - e.AbsWidth() - margin
+	absY = e.calcVerticalAlign(ty, target.AbsHeight(), align)
 	return absX, absY
 }
 
 func (e *Element) AbsPosRightOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
 	tx, ty := target.AbsPos()
-	absX = tx + target.Width() + margin
-	absY = e.calcVerticalAlign(ty, target.Height(), align)
+	absX = tx + target.AbsWidth() + margin
+	absY = e.calcVerticalAlign(ty, target.AbsHeight(), align)
 	return absX, absY
 }
 
 func (e *Element) AbsPosAbove(target *Element, margin float64, align Alignment) (absX, absY float64) {
 	tx, ty := target.AbsPos()
-	absX = e.calcHorizontalAlign(tx, target.Width(), align)
-	absY = ty - e.Height() - margin
+	absX = e.calcHorizontalAlign(tx, target.AbsWidth(), align)
+	absY = ty - e.AbsHeight() - margin
 	return absX, absY
 }
 
 func (e *Element) AbsPosBelow(target *Element, margin float64, align Alignment) (absX, absY float64) {
 	tx, ty := target.AbsPos()
-	absX = e.calcHorizontalAlign(tx, target.Width(), align)
-	absY = ty + target.Height() + margin
+	absX = e.calcHorizontalAlign(tx, target.AbsWidth(), align)
+	absY = ty + target.AbsHeight() + margin
 	return absX, absY
 }
 
 func (e *Element) AbsPosCenterOf(target *Element) (absX, absY float64) {
 	tx, ty := target.AbsPos()
-	absX = tx + (target.Width()-e.Width())/2
-	absY = ty + (target.Height()-e.Height())/2
+	absX = tx + (target.AbsWidth()-e.AbsWidth())/2
+	absY = ty + (target.AbsHeight()-e.AbsHeight())/2
 	return absX, absY
 }
 
@@ -204,13 +232,13 @@ func (e *Element) AbsYInScreenHeight(h float64, align Alignment) float64 {
 
 func (e *Element) AbsPosToRelPosToParent(absX, absY float64) (relX, relY float64) {
 	parentX, parentY := 0.0, 0.0
-	parentWs, parentHs := 1.0, 1.0
+	parentWsc, parentHsc := 1.0, 1.0
 
 	if e.Parent != nil {
 		parentX, parentY = e.Parent.AbsPos()
-		parentWs, parentHs = e.Parent.AbsScale()
+		parentWsc, parentHsc = e.Parent.AbsWidthScale(), e.Parent.AbsHeightScale()
 	}
-	return (absX - parentX) / parentWs, (absY - parentY) / parentHs
+	return (absX - parentX) / parentWsc, (absY - parentY) / parentHsc
 }
 
 func (e *Element) calcHorizontalAlign(targetAbsX, targetWidth float64, align Alignment) float64 {
@@ -218,9 +246,9 @@ func (e *Element) calcHorizontalAlign(targetAbsX, targetWidth float64, align Ali
 	case AlignStart:
 		return targetAbsX
 	case AlignCenter:
-		return targetAbsX + (targetWidth-e.Width())/2
+		return targetAbsX + (targetWidth-e.AbsWidth())/2
 	case AlignEnd:
-		return targetAbsX + targetWidth - e.Width()
+		return targetAbsX + targetWidth - e.AbsWidth()
 	default:
 		return targetAbsX
 	}
@@ -231,9 +259,9 @@ func (e *Element) calcVerticalAlign(targetAbsY, targetHeight float64, align Alig
 	case AlignStart:
 		return targetAbsY
 	case AlignCenter:
-		return targetAbsY + (targetHeight-e.Height())/2
+		return targetAbsY + (targetHeight-e.AbsHeight())/2
 	case AlignEnd:
-		return targetAbsY + targetHeight - e.Height()
+		return targetAbsY + targetHeight - e.AbsHeight()
 	default:
 		return targetAbsY
 	}
@@ -270,7 +298,7 @@ func (e *Element) Contains(pointX, pointY float64) bool {
 	}
 
 	absX, absY := e.AbsPos()
-	w, h := e.Width(), e.Height()
+	w, h := e.AbsWidth(), e.AbsHeight()
 
 	isRightOfLeft := pointX >= absX
 	isLeftOfRight := pointX < absX+w
@@ -286,10 +314,10 @@ func (e *Element) Overlaps(other *Element) bool {
 	}
 
 	xa, ya := e.AbsPos()
-	wa, ha := e.Width(), e.Height()
+	wa, ha := e.AbsWidth(), e.AbsHeight()
 
 	xb, yb := other.AbsPos()
-	wb, hb := other.Width(), other.Height()
+	wb, hb := other.AbsWidth(), other.AbsHeight()
 
 	isLeftOfBRight := xa < xb+wb
 	isRightOfBLeft := xa+wa > xb
@@ -338,9 +366,9 @@ func (e *Element) StartDrag() {
 	e.isDragging = true
 	cursorX, cursorY := ebiten.CursorPosition()
 	absX, absY := e.AbsPos()
-	absWs, absHs := e.AbsScale()
-	e.dragOffsetX = (float64(cursorX) - absX) / absWs
-	e.dragOffsetY = (float64(cursorY) - absY) / absHs
+	absWsc, absHsc := e.AbsWidthScale(), e.AbsHeightScale()
+	e.dragOffsetX = (float64(cursorX) - absX) / absWsc
+	e.dragOffsetY = (float64(cursorY) - absY) / absHsc
 }
 
 func (e *Element) StopDrag() {
@@ -365,11 +393,11 @@ func (e *Element) Draw(screen *ebiten.Image) {
 	}
 
 	absX, absY := e.AbsPos()
-	absWs, absHs := e.AbsScale()
+	absWsc, absHsc := e.AbsWidthScale(), e.AbsHeightScale()
 
 	if e.Image != nil {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Scale(absWs, absHs)
+		op.GeoM.Scale(absWsc, absHsc)
 		op.GeoM.Translate(absX, absY)
 		op.Filter = e.Filter
 		screen.DrawImage(e.Image, op)
@@ -464,9 +492,9 @@ func (es Elements) UpdateDragMove() {
 			continue
 		}
 
-		absWs, absHs := e.AbsScale()
-		toAbsX := cursorXf - (e.dragOffsetX * absWs)
-		toAbsY := cursorYf - (e.dragOffsetY * absHs)
+		absWsc, absHsc := e.AbsWidthScale(), e.AbsHeightScale()
+		toAbsX := cursorXf - (e.dragOffsetX * absWsc)
+		toAbsY := cursorYf - (e.dragOffsetY * absHsc)
 		// 目標の絶対座標を、自身の相対座標に変換
 		toRelX, toRelY := e.AbsPosToRelPosToParent(toAbsX, toAbsY)
 

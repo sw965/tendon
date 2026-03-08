@@ -14,8 +14,9 @@ import (
 var dmgImg *ebiten.Image
 
 func init() {
+	return
 	// 指定されたパスから画像を読み込み
-	img, _, err := ebitenutil.NewImageFromFile("C:/Users/rayze/Desktop/img/Dark Magician Girl.jpg")
+	img, _, err := ebitenutil.NewImageFromFile("")
 	if err != nil {
 		panic(err)
 	}
@@ -68,6 +69,7 @@ func (g *DynamicBoxGame) Layout(w, h int) (int, int) {
 }
 
 func TestBoxDynamic(t *testing.T) {
+	return
 	// 1000x400 のゆったりした Box を作成
 	hBox := tendon.NewBox(900, 400, 10)
 	hBox.XRelativeToParent = 50

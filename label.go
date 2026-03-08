@@ -9,79 +9,65 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 )
 
-var (
-	defaultFaceSource *text.GoTextFaceSource
-	DefaultFontSize   float64 = 16
-)
-
-// NewDefaultFace は指定されたサイズのフォントフェイスを生成します。
-func NewDefaultFace(size float64) *text.GoTextFace {
-	if defaultFaceSource == nil {
-		var err error
-		defaultFaceSource, err = text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
-		if err != nil {
-			panic(err)
-		}
-	}
-	return &text.GoTextFace{
-		Source: defaultFaceSource,
-		Size:   size,
-	}
+func NewDefaultFontSource() (*text.GoTextFaceSource, error) {
+	return text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 }
 
 type Label struct {
 	*Element
-	text     string
-	fontSize float64
+	font *text.GoTextFace
+	text string
 }
 
-// NewLabel は初期テキストとフォントサイズを指定してラベルを作成します。
-func NewLabel(text string, size float64) *Label {
+func (l *Label) Font() *text.GoTextFace {
+	return l.font
+}
+
+func (l *Label) Text() string {
+	return l.text
+}
+
+func NewLabel(txt string, size float64) (*Label, error) {
+	src, err := NewDefaultFontSource()
+	if err != nil {
+		return nil, err
+	}
+
 	l := &Label{
-		Element:  NewElement(),
-		fontSize: size,
+		Element: NewElement(),
 	}
 	l.Filter = ebiten.FilterLinear
 	l.PassThrough = true
-	l.SetText(text)
-	return l
+
+	l.Update(txt, src, size)
+	return l, nil
 }
 
-// SetSize はフォントサイズを変更し、画像をクッキリした状態で再生成します。
-func (l *Label) SetSize(size float64) {
-	if l.fontSize == size {
+func (l *Label) Update(txt string, src *text.GoTextFaceSource, size float64) {
+	if src == nil {
 		return
 	}
-	l.fontSize = size
-	l.render()
-}
 
-// SetText は現在のサイズを維持したままテキストを更新します。
-func (l *Label) SetText(txt string) {
-	if l.text == txt && l.Image != nil {
+	// 変更がなければ、計算をスキップして負荷を下げる
+	if l.text == txt && l.font != nil && l.font.Source == src && l.font.Size == size && l.Image != nil {
 		return
 	}
+
 	l.text = txt
-	l.render()
-}
+	l.font = &text.GoTextFace{
+		Source: src,
+		Size:   size,
+	}
 
-// render は現在のテキストとサイズで、最適な解像度の画像を生成します。
-func (l *Label) render() {
-	face := NewDefaultFace(l.fontSize)
-	
-	w, h := text.Measure(l.text, face, 0)
+	// テキストサイズの計測
+	w, h := text.Measure(l.text, l.font, 0)
 	if w <= 0 || h <= 0 {
 		l.Image = nil
 		return
 	}
 
-	// 拡大によるボヤけを防ぐため、常にネイティブサイズで描画
+	// math.Ceil で切り上げることで、端数による描画欠けを防止
 	img := ebiten.NewImage(int(math.Ceil(w)), int(math.Ceil(h)))
-	text.Draw(img, l.text, face, &text.DrawOptions{})
-	
+	text.Draw(img, l.text, l.font, &text.DrawOptions{})
 	l.Image = img
-}
-
-func (l *Label) Text() string {
-	return l.text
 }

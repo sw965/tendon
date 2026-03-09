@@ -17,7 +17,6 @@ func (g *ColorTestGame) Update() error {
 }
 
 func (g *ColorTestGame) Draw(screen *ebiten.Image) {
-	// 背景を少し暗めのグレーにして、各色を際立たせる
 	screen.Fill(color.RGBA{45, 45, 50, 255})
 	g.elements.Draw(screen)
 }
@@ -33,28 +32,15 @@ func TestColorPaletteExtended(t *testing.T) {
 		c    color.RGBA
 	}
 
-	// 全16色のリスト
 	palette := []colorInfo{
-		{"Red", tendon.Red},
-		{"Blue", tendon.Blue},
-		{"Yellow", tendon.Yellow},
-		{"Green", tendon.Green},
-		{"Orange", tendon.Orange},
-		{"Brown", tendon.Brown},
-		{"Pink", tendon.Pink},
-		{"LightBlue", tendon.LightBlue},
-		{"YellowGreen", tendon.YellowGreen},
-		{"Purple", tendon.Purple},
-		{"PaleOrange", tendon.PaleOrange},
-		{"Ocher", tendon.Ocher},
-		{"Vermilion", tendon.Vermilion},
-		{"Gray", tendon.Gray},
-		{"Black", tendon.Black},
-		{"White", tendon.White},
+		{"Red", tendon.Red}, {"Blue", tendon.Blue}, {"Yellow", tendon.Yellow}, {"Green", tendon.Green},
+		{"Orange", tendon.Orange}, {"Brown", tendon.Brown}, {"Pink", tendon.Pink}, {"LightBlue", tendon.LightBlue},
+		{"YellowGreen", tendon.YellowGreen}, {"Purple", tendon.Purple}, {"PaleOrange", tendon.PaleOrange}, {"Ocher", tendon.Ocher},
+		{"Vermilion", tendon.Vermilion}, {"Gray", tendon.Gray}, {"Black", tendon.Black}, {"White", tendon.White},
 	}
 
-	// 4列 × 4行 のグリッドを作成
-	grid := tendon.NewGrid(4, 4, 180, 80, 20)
+	cellW, cellH := 180.0, 80.0
+	grid := tendon.NewGrid(4, 4, cellW, cellH, 20)
 	grid.XRelativeToParent = 40
 	grid.YRelativeToParent = 40
 
@@ -66,9 +52,19 @@ func TestColorPaletteExtended(t *testing.T) {
 			continue
 		}
 
-		// ボタンとして配置（ラベル付きの矩形として利用）
-		btn := tendon.NewButton(0, 0, 180, 80, info.name, info.c)
-		cell.AppendChild(btn)
+		// 1. セル自身（背景）に直接色を塗る
+		cell.Image = ebiten.NewImage(int(cellW), int(cellH))
+		cell.Image.Fill(info.c)
+
+		// 2. ラベルを作成（フォントサイズを20pxにしてはみ出しを防ぐ）
+		l, err := tendon.NewLabel(info.name, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// 3. ラベルをセルの中央に配置して追加
+		cell.AppendChild(l.Element)
+		l.PlaceCenterOf(cell)
 	}
 
 	game := &ColorTestGame{

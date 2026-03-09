@@ -2,11 +2,8 @@
 package tendon
 
 import (
-	"image/color"
 	"slices"
-
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 // Element はUIツリーを構成する基本コンポーネントです。
@@ -72,27 +69,6 @@ func NewElement() *Element {
 	}
 	e.SetScale(1.0)
 	return e
-}
-
-func NewButton(relX, relY float64, w, h int, label string, bgColor color.Color) *Element {
-	bg := ebiten.NewImage(w, h)
-	bg.Fill(bgColor)
-
-	btn := NewElement()
-	btn.XRelativeToParent = relX
-	btn.YRelativeToParent = relY
-	btn.Image = bg
-
-	txtImg := ebiten.NewImage(w, h)
-	ebitenutil.DebugPrintAt(txtImg, label, 10, h/2-8)
-
-	textElem := NewElement()
-	textElem.Image = txtImg
-	textElem.Filter = ebiten.FilterLinear
-	textElem.PassThrough = true
-	btn.AppendChild(textElem)
-
-	return btn
 }
 
 func (e *Element) IsDragging() bool {

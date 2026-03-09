@@ -181,7 +181,7 @@ func (e *Element) RemoveChild(target *Element) bool {
 
 	// 子要素の親参照を解除
 	target.Parent = nil
-	
+
 	// スライスから削除
 	e.Children = slices.Delete(e.Children, index, index+1)
 	return true
@@ -222,11 +222,11 @@ func (e *Element) AbsPosCenterOf(target *Element) (absX, absY float64) {
 	return absX, absY
 }
 
-func (e *Element) AbsXInScreenWidth(w float64, align Alignment) float64 {
+func (e *Element) AbsXInLayoutWidth(w float64, align Alignment) float64 {
 	return e.calcHorizontalAlign(0, w, align)
 }
 
-func (e *Element) AbsYInScreenHeight(h float64, align Alignment) float64 {
+func (e *Element) AbsYInLayoutHeight(h float64, align Alignment) float64 {
 	return e.calcVerticalAlign(0, h, align)
 }
 

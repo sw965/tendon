@@ -38,7 +38,7 @@ func (g *DynamicBoxGame) Update() error {
 		// ヒットした要素の中から、Box自身（背景）以外のカードを探して削除
 		for _, e := range hits {
 			if e != g.box.Element {
-				g.box.RemoveChild(e) // ターゲットをポインタで指定
+				g.box.RemoveChild(e)            // ターゲットをポインタで指定
 				g.box.Update(tendon.Horizontal) // 削除後に再整列
 				break
 			}

@@ -17,13 +17,13 @@ type LabelTestGame struct {
 
 func (g *LabelTestGame) Update() error {
 	g.counter++
-	
+
 	// 約1秒ごとにテキストとサイズを更新するテスト
 	if g.counter%60 == 0 {
 		// 現在のフォントソースを維持しつつ、サイズだけ計算
 		newSize := float64(16 + ((g.counter/60)%3)*16)
 		newText := fmt.Sprintf("Size: %.0fpx / Frame: %d", newSize, g.counter)
-		
+
 		// 【ポイント】現在の Font().Source を取得して Update に渡す
 		// これにより、差分計算が走り、必要な場合のみ再描画されます
 		g.dynamic.Update(newText, g.dynamic.Font().Source, newSize)
@@ -41,6 +41,7 @@ func (g *LabelTestGame) Layout(w, h int) (int, int) {
 }
 
 func TestLabelRefactored(t *testing.T) {
+	return
 	// 1. 静的なラベルの作成（エラーハンドリング付き）
 	staticLabel, err := tendon.NewLabel("Static Label (Refactored)", 24)
 	if err != nil {

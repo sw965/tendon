@@ -1,6 +1,7 @@
 package tendon
 
 import (
+	"math"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -26,7 +27,8 @@ func NewGrid(rows, cols int, cellW, cellH, gap float64) *Grid {
 
 	// 透明な背景画像をセットすることで、Elementとしてのサイズを持たせる
 	if totalW > 0 && totalH > 0 {
-		container.Image = ebiten.NewImage(int(totalW), int(totalH))
+		// 欠けを防ぐために、切り上げ
+		container.Image = ebiten.NewImage(int(math.Ceil(totalW)), int(math.Ceil(totalH)))
 	}
 
 	// 二次元スライスの初期化 (行ベース)
@@ -58,23 +60,28 @@ func NewBorderGrid(rows, cols int, cellW, cellH, gap float64, borderColor color.
 	// ベースとなるグリッドを生成
 	g := NewGrid(rows, cols, cellW, cellH, gap)
 
+	// 欠けを防ぐために切り上げ
+	wi := int(math.Ceil(cellW))
+	hi := int(math.Ceil(cellH))
+	wf := float64(wi)
+	hf := float64(hi)
+
 	for r := 0; r < rows; r++ {
 		for c := 0; c < cols; c++ {
 			cell := g.GetCell(r, c)
 
 			// セルのサイズに合わせてImageを作成
-			img := ebiten.NewImage(int(cellW), int(cellH))
+			img := ebiten.NewImage(wi, hi)
 
 			// 四辺に長方形を描画して枠線とする
-			ebitenutil.DrawRect(img, 0, 0, cellW, borderWidth, borderColor)
-			ebitenutil.DrawRect(img, 0, cellH-borderWidth, cellW, borderWidth, borderColor)
-			ebitenutil.DrawRect(img, 0, 0, borderWidth, cellH, borderColor)
-			ebitenutil.DrawRect(img, cellW-borderWidth, 0, borderWidth, cellH, borderColor)
+			ebitenutil.DrawRect(img, 0, 0, wf, borderWidth, borderColor)
+			ebitenutil.DrawRect(img, 0, hf-borderWidth, wf, borderWidth, borderColor)
+			ebitenutil.DrawRect(img, 0, 0, borderWidth, hf, borderColor)
+			ebitenutil.DrawRect(img, wf-borderWidth, 0, borderWidth, hf, borderColor)
 
 			cell.Image = img
 		}
 	}
-
 	return g
 }
 

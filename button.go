@@ -50,7 +50,7 @@ func (b *Button) SetText(txt string) {
 	h := b.BaseHeight()
 	w := b.BaseWidth()
 	fontSize := h * 0.6
-	
+
 	font := &text.GoTextFace{Source: b.Label.Font().Source, Size: fontSize}
 	txtW, _ := text.Measure(txt, font, 0)
 

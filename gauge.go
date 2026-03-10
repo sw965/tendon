@@ -22,31 +22,6 @@ var (
 	defaultGaugeBgColor = color.RGBA{40, 40, 45, 255}
 )
 
-type EasingFunc func(current, target float64) float64
-
-// (ratio*100)ずつ目標値に近づき、snapDictの距離で吸着
-func NewLerpEasingFunc(ratio, snapDist float64) EasingFunc {
-	return func(current, target float64) float64 {
-		if math.Abs(current-target) < snapDist {
-			return target
-		}
-		return current + (target-current)*ratio
-	}
-}
-
-func NewLinearEasingFunc(speed float64) EasingFunc {
-	return func(current, target float64) float64 {
-		diff := target - current
-		if math.Abs(diff) <= speed {
-			return target
-		}
-		if diff > 0 {
-			return current + speed
-		}
-		return current - speed
-	}
-}
-
 type Counter struct {
 	*Element
 	Label      *Label
@@ -54,6 +29,9 @@ type Counter struct {
 	Current    float64
 	EasingFunc EasingFunc
 	FormatFunc func(float64) string
+
+	isAnimating    bool // 現在アニメーション中（Current != Target）か
+	isJustFinished bool // このフレームでアニメーションが完了したか
 }
 
 func newCounter(size, init float64) (*Counter, error) {
@@ -94,13 +72,31 @@ func NewLerpCounter(size, init float64) (*Counter, error) {
 	return c, nil
 }
 
+func (c *Counter) IsAnimating() bool {
+	return c.isAnimating
+}
+
+func (c *Counter) IsJustFinished() bool {
+	return c.isJustFinished
+}
+
 func (c *Counter) Update() {
 	c.Element.Update()
+	c.isJustFinished = false
+
 	if c.Current == c.Target {
+		c.isAnimating = false
 		return
 	}
+
+	c.isAnimating = true
 	c.Current = c.EasingFunc(c.Current, c.Target)
 	c.updateLabel()
+
+	if c.Current == c.Target {
+		c.isAnimating = false
+		c.isJustFinished = true
+	}
 }
 
 func (c *Counter) updateLabel() {

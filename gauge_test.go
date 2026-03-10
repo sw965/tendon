@@ -151,7 +151,7 @@ func TestGaugeAnimation(t *testing.T) {
 	mana.YRelativeToParent = 150
 
 	// 第3引数の 0.1 は不要になったため削除 (内部定数が使われる)
-	lp, err := tendon.NewLerpCounter(48, 8000) 
+	lp, err := tendon.NewLerpCounter(48, 8000)
 	if err != nil {
 		t.Fatal(err)
 	}

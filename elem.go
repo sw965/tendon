@@ -2,8 +2,8 @@
 package tendon
 
 import (
-	"slices"
 	"github.com/hajimehoshi/ebiten/v2"
+	"slices"
 )
 
 // Element はUIツリーを構成する基本コンポーネントです。
@@ -57,6 +57,13 @@ type Element struct {
 	isJustHoverIn  bool
 	isJustHoverOut bool
 
+	// 移動アニメーション関連
+	toX                float64
+	toY                float64
+	isMoving           bool
+	isJustMoveFinished bool
+	EasingFunc         EasingFunc
+
 	// カプセル化の検討
 	Children Elements
 	Parent   *Element
@@ -66,6 +73,7 @@ func NewElement() *Element {
 	e := &Element{
 		Visible: true,
 		Enabled: true,
+		EasingFunc: func(current, target float64) float64 { return target },
 	}
 	e.SetScale(1.0)
 	return e
@@ -89,6 +97,14 @@ func (e *Element) IsJustHoverIn() bool {
 
 func (e *Element) IsJustHoverOut() bool {
 	return e.isJustHoverOut
+}
+
+func (e *Element) IsMoving() bool {
+	return e.isMoving
+}
+
+func (e *Element) IsJustMoveFinished() bool {
+	return e.isJustMoveFinished
 }
 
 func (e *Element) SetScale(s float64) {
@@ -353,9 +369,32 @@ func (e *Element) StopDrag() {
 	e.DragDeltaY = 0
 }
 
+func (e *Element) MoveTo(x, y float64) {
+	e.toX = x
+	e.toY = y
+	e.isMoving = true
+	e.isJustMoveFinished = false
+}
+
 func (e *Element) Update() {
 	if !e.Visible {
 		return
+	}
+
+	e.isJustMoveFinished = false
+	if e.isMoving {
+		if e.EasingFunc == nil {
+			e.XRelativeToParent = e.toX
+			e.YRelativeToParent = e.toY
+		} else {
+			e.XRelativeToParent = e.EasingFunc(e.XRelativeToParent, e.toX)
+			e.YRelativeToParent = e.EasingFunc(e.YRelativeToParent, e.toY)
+		}
+
+		if e.XRelativeToParent == e.toX && e.YRelativeToParent == e.toY {
+			e.isMoving = false
+			e.isJustMoveFinished = true
+		}
 	}
 
 	for _, child := range e.Children {

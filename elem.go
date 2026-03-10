@@ -523,6 +523,12 @@ func (es Elements) UpdateDragMove() {
 	}
 }
 
+func (es Elements) Update() {
+	for _, e := range es {
+		e.Update()
+	}
+}
+
 func (es Elements) Draw(screen *ebiten.Image) {
 	// Zが小さい順から描写する
 	es.SortByZAsc()

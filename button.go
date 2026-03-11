@@ -41,7 +41,7 @@ func NewButton(w, h float64, txt string, bgColor color.Color) (*Button, error) {
 		Label:   l,
 	}
 
-	b.AppendChild(l.Element)
+	b.AppendChild(l)
 	l.PlaceCenterOf(base)
 	return b, nil
 }
@@ -59,6 +59,6 @@ func (b *Button) SetText(txt string) {
 		fontSize = fontSize * (maxWidth / txtW)
 	}
 
-	b.Label.Update(txt, b.Label.Font().Source, fontSize)
+	b.Label.SetText(txt, b.Label.Font().Source, fontSize)
 	b.Label.PlaceCenterOf(b.Element)
 }

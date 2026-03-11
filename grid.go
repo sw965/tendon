@@ -37,6 +37,10 @@ func NewGrid(rows, cols int, cellW, cellH, gap float64) *Grid {
 		matrix[r] = make([]*Element, cols)
 		for c := 0; c < cols; c++ {
 			cell := NewElement()
+			if cellW > 0 && cellH > 0 {
+				cell.Image = ebiten.NewImage(int(math.Ceil(cellW)), int(math.Ceil(cellH)))
+			}
+
 			// 座標を計算してセット
 			// 列(c)がX座標、行(r)がY座標に対応
 			cell.XRelativeToParent = float64(c) * (cellW + gap)

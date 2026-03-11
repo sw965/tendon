@@ -65,7 +65,7 @@ type Element struct {
 	EasingFunc         EasingFunc
 
 	// カプセル化の検討
-	Children Elements
+	Children Components
 	Parent   *Element
 }
 
@@ -160,58 +160,88 @@ func (e *Element) AbsPos() (float64, float64) {
 	return px + (e.XRelativeToParent * parentWsc), py + (e.YRelativeToParent * parentHsc)
 }
 
-func (e *Element) AppendChild(child *Element) {
-	child.Parent = e
+func (e *Element) AppendChild(child Component) {
+	child.BaseElement().Parent = e
 	e.Children = append(e.Children, child)
 }
 
-func (e *Element) RemoveChild(target *Element) bool {
+func (e *Element) RemoveChild(target Component) bool {
 	index := slices.Index(e.Children, target)
 	if index == -1 {
 		return false
 	}
 
 	// 子要素の親参照を解除
-	target.Parent = nil
+	target.BaseElement().Parent = nil
 
 	// スライスから削除
 	e.Children = slices.Delete(e.Children, index, index+1)
 	return true
 }
 
-func (e *Element) AbsPosLeftOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
-	tx, ty := target.AbsPos()
+func (e *Element) AbsPosLeftOf(target Component, margin float64, align Alignment) (absX, absY float64) {
+	t := target.BaseElement()
+	tx, ty := t.AbsPos()
 	absX = tx - e.AbsWidth() - margin
-	absY = e.calcVerticalAlign(ty, target.AbsHeight(), align)
+	absY = e.calcVerticalAlign(ty, t.AbsHeight(), align)
 	return absX, absY
 }
 
-func (e *Element) AbsPosRightOf(target *Element, margin float64, align Alignment) (absX, absY float64) {
-	tx, ty := target.AbsPos()
-	absX = tx + target.AbsWidth() + margin
-	absY = e.calcVerticalAlign(ty, target.AbsHeight(), align)
+func (e *Element) AbsPosRightOf(target Component, margin float64, align Alignment) (absX, absY float64) {
+	t := target.BaseElement()
+	tx, ty := t.AbsPos()
+	absX = tx + t.AbsWidth() + margin
+	absY = e.calcVerticalAlign(ty, t.AbsHeight(), align)
 	return absX, absY
 }
 
-func (e *Element) AbsPosAbove(target *Element, margin float64, align Alignment) (absX, absY float64) {
-	tx, ty := target.AbsPos()
-	absX = e.calcHorizontalAlign(tx, target.AbsWidth(), align)
+func (e *Element) AbsPosAbove(target Component, margin float64, align Alignment) (absX, absY float64) {
+	t := target.BaseElement()
+	tx, ty := t.AbsPos()
+	absX = e.calcHorizontalAlign(tx, t.AbsWidth(), align)
 	absY = ty - e.AbsHeight() - margin
 	return absX, absY
 }
 
-func (e *Element) AbsPosBelow(target *Element, margin float64, align Alignment) (absX, absY float64) {
-	tx, ty := target.AbsPos()
-	absX = e.calcHorizontalAlign(tx, target.AbsWidth(), align)
-	absY = ty + target.AbsHeight() + margin
+func (e *Element) AbsPosBelow(target Component, margin float64, align Alignment) (absX, absY float64) {
+	t := target.BaseElement()
+	tx, ty := t.AbsPos()
+	absX = e.calcHorizontalAlign(tx, t.AbsWidth(), align)
+	absY = ty + t.AbsHeight() + margin
 	return absX, absY
 }
 
-func (e *Element) AbsPosCenterOf(target *Element) (absX, absY float64) {
-	tx, ty := target.AbsPos()
-	absX = tx + (target.AbsWidth()-e.AbsWidth())/2
-	absY = ty + (target.AbsHeight()-e.AbsHeight())/2
+func (e *Element) AbsPosCenterOf(target Component) (absX, absY float64) {
+	t := target.BaseElement()
+	tx, ty := t.AbsPos()
+	absX = tx + (t.AbsWidth()-e.AbsWidth())/2
+	absY = ty + (t.AbsHeight()-e.AbsHeight())/2
 	return absX, absY
+}
+
+func (e *Element) PlaceLeftOf(target Component, margin float64, align Alignment) {
+	absX, absY := e.AbsPosLeftOf(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) PlaceRightOf(target Component, margin float64, align Alignment) {
+	absX, absY := e.AbsPosRightOf(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) PlaceAbove(target Component, margin float64, align Alignment) {
+	absX, absY := e.AbsPosAbove(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) PlaceBelow(target Component, margin float64, align Alignment) {
+	absX, absY := e.AbsPosBelow(target, margin, align)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
+}
+
+func (e *Element) PlaceCenterOf(target Component) {
+	absX, absY := e.AbsPosCenterOf(target)
+	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
 }
 
 func (e *Element) AbsXInLayoutWidth(w float64, align Alignment) float64 {
@@ -259,31 +289,6 @@ func (e *Element) calcVerticalAlign(targetAbsY, targetHeight float64, align Alig
 	}
 }
 
-func (e *Element) PlaceLeftOf(target *Element, margin float64, align Alignment) {
-	absX, absY := e.AbsPosLeftOf(target, margin, align)
-	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
-}
-
-func (e *Element) PlaceRightOf(target *Element, margin float64, align Alignment) {
-	absX, absY := e.AbsPosRightOf(target, margin, align)
-	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
-}
-
-func (e *Element) PlaceAbove(target *Element, margin float64, align Alignment) {
-	absX, absY := e.AbsPosAbove(target, margin, align)
-	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
-}
-
-func (e *Element) PlaceBelow(target *Element, margin float64, align Alignment) {
-	absX, absY := e.AbsPosBelow(target, margin, align)
-	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
-}
-
-func (e *Element) PlaceCenterOf(target *Element) {
-	absX, absY := e.AbsPosCenterOf(target)
-	e.XRelativeToParent, e.YRelativeToParent = e.AbsPosToRelPosToParent(absX, absY)
-}
-
 func (e *Element) Contains(pointX, pointY float64) bool {
 	if e.Image == nil {
 		return false
@@ -300,16 +305,17 @@ func (e *Element) Contains(pointX, pointY float64) bool {
 	return isRightOfLeft && isLeftOfRight && isBelowTop && isAboveBottom
 }
 
-func (e *Element) Overlaps(other *Element) bool {
-	if e.Image == nil || other.Image == nil {
+func (e *Element) Overlaps(other Component) bool {
+	t := other.BaseElement()
+	if e.Image == nil || t.Image == nil {
 		return false
 	}
 
 	xa, ya := e.AbsPos()
 	wa, ha := e.AbsWidth(), e.AbsHeight()
 
-	xb, yb := other.AbsPos()
-	wb, hb := other.AbsWidth(), other.AbsHeight()
+	xb, yb := t.AbsPos()
+	wb, hb := t.AbsWidth(), t.AbsHeight()
 
 	isLeftOfBRight := xa < xb+wb
 	isRightOfBLeft := xa+wa > xb
@@ -319,42 +325,11 @@ func (e *Element) Overlaps(other *Element) bool {
 	return isLeftOfBRight && isRightOfBLeft && isAboveBBottom && isBelowBTop
 }
 
-func (e *Element) FindAllFromPoint(pointX, pointY float64, dst *Elements) {
-	// 子要素も弾く
-	if !e.Visible {
-		return
-	}
-
-	// 親よりも子要素を先に判定
-	e.Children.SortByZDesc()
-	for _, child := range e.Children {
-		child.FindAllFromPoint(pointX, pointY, dst)
-	}
-
-	// 最後に自分自身を判定
-	if !e.PassThrough && e.Contains(pointX, pointY) {
-		*dst = append(*dst, e)
-	}
-}
-
-func (e *Element) FindAllOverlapping(target *Element, dst *Elements) {
-	if !e.Visible {
-		return
-	}
-
-	// 子要素を先に判定
-	e.Children.FindAllOverlapping(target, dst)
-
-	// 自分自身を判定
-	if e != target && !e.PassThrough && e.Overlaps(target) {
-		*dst = append(*dst, e)
-	}
-}
-
 func (e *Element) StartDrag() {
 	if !e.Draggable || !e.Enabled {
 		return
 	}
+
 	e.isDragging = true
 	cursorX, cursorY := ebiten.CursorPosition()
 	absX, absY := e.AbsPos()
@@ -424,115 +399,6 @@ func (e *Element) Draw(screen *ebiten.Image) {
 	}
 }
 
-type Elements []*Element
-
-func (es Elements) SortByZAsc() {
-	slices.SortStableFunc(es, func(a, b *Element) int {
-		return a.Z - b.Z
-	})
-}
-
-func (es Elements) SortByZDesc() {
-	slices.SortStableFunc(es, func(a, b *Element) int {
-		return b.Z - a.Z
-	})
-}
-
-func (es Elements) FindAllHitTest(pointX, pointY float64, dst *Elements) {
-	es.SortByZDesc()
-	for _, e := range es {
-		e.FindAllFromPoint(pointX, pointY, dst)
-	}
-}
-
-func (es Elements) FindOverlapping(target *Element, dst *Elements) {
-	for _, e := range es {
-		if !e.Visible || e.PassThrough || e == target {
-			continue
-		}
-		if e.Overlaps(target) {
-			*dst = append(*dst, e)
-		}
-	}
-}
-
-func (es Elements) FindAllOverlapping(target *Element, dst *Elements) {
-	for _, e := range es {
-		e.FindAllOverlapping(target, dst)
-	}
-}
-
-func (es Elements) StopAllDrag() {
-	for _, e := range es {
-		e.StopDrag()
-		e.Children.StopAllDrag()
-	}
-}
-
-func (es Elements) UpdateHover(hitTest Elements) {
-	// アロケーションを減らすような設計に変える
-	hitSet := make(map[*Element]bool)
-	for _, e := range hitTest {
-		hitSet[e] = true
-	}
-
-	var update func(Elements)
-	update = func(elements Elements) {
-		for _, e := range elements {
-			isHit := hitSet[e] && e.Enabled
-			e.isJustHoverIn = false
-			e.isJustHoverOut = false
-
-			// 現在ヒットテスト かつ 直前のフレームでは範囲外 (新しく侵入)
-			if isHit && !e.isHovered {
-				e.isHovered = true
-				e.isJustHoverIn = true
-				// 現在ヒットテストではない かつ 直前のフレームでは範囲内（今抜けた)
-			} else if !isHit && e.isHovered {
-				e.isHovered = false
-				e.isJustHoverOut = true
-			}
-			update(e.Children)
-		}
-	}
-	update(es)
-}
-
-func (es Elements) UpdateDragMove() {
-	cursorX, cursorY := ebiten.CursorPosition()
-	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
-
-	for _, e := range es {
-		if !e.isDragging {
-			continue
-		}
-
-		absWsc, absHsc := e.AbsWidthScale(), e.AbsHeightScale()
-		toAbsX := cursorXf - (e.dragOffsetX * absWsc)
-		toAbsY := cursorYf - (e.dragOffsetY * absHsc)
-		// 目標の絶対座標を、自身の相対座標に変換
-		toRelX, toRelY := e.AbsPosToRelPosToParent(toAbsX, toAbsY)
-
-		e.DragDeltaX = toRelX - e.XRelativeToParent
-		e.DragDeltaY = toRelY - e.YRelativeToParent
-
-		if !e.ManualDrag {
-			e.XRelativeToParent = toRelX
-			e.YRelativeToParent = toRelY
-		}
-	}
-}
-
-func (es Elements) Update() {
-	for _, e := range es {
-		e.Update()
-	}
-}
-
-func (es Elements) Draw(screen *ebiten.Image) {
-	// Zが小さい順から描写する
-	es.SortByZAsc()
-	for _, e := range es {
-		e.Draw(screen)
-	}
+func (e *Element) BaseElement() *Element {
+	return e
 }

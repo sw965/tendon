@@ -9,7 +9,7 @@ import (
 )
 
 type ColorTestGame struct {
-	elements tendon.Elements
+	elements tendon.Components // ★ Elements から変更
 }
 
 func (g *ColorTestGame) Update() error {
@@ -56,19 +56,19 @@ func TestColorPaletteExtended(t *testing.T) {
 		cell.Image = ebiten.NewImage(int(cellW), int(cellH))
 		cell.Image.Fill(info.c)
 
-		// 2. ラベルを作成（フォントサイズを20pxにしてはみ出しを防ぐ）
+		// 2. ラベルを作成
 		l, err := tendon.NewLabel(info.name, 20)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		// 3. ラベルをセルの中央に配置して追加
-		cell.AppendChild(l.Element)
+		cell.AppendChild(l) // ★ .Element を削除
 		l.PlaceCenterOf(cell)
 	}
 
 	game := &ColorTestGame{
-		elements: tendon.Elements{grid.Element},
+		elements: tendon.Components{grid}, // ★ .Element を削除
 	}
 
 	ebiten.SetWindowSize(850, 500)

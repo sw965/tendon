@@ -21,8 +21,9 @@ type Box struct {
 	*Element
 	Gap            float64
 	MainAlignment  Alignment
-	CrossAlignment Alignment // 交差軸方向の配置
+	CrossAlignment Alignment
 	AutoCompress   bool
+	Orientation    Orientation // ★追加：Update() を引数なしにするため方向を保持する
 }
 
 // NewBox は指定されたサイズ(w, h)と隙間(gap)で新しい整列コンテナを作成します。
@@ -36,16 +37,18 @@ func NewBox(w, h, gap float64) *Box {
 		Element:        container,
 		Gap:            gap,
 		MainAlignment:  AlignCenter,
-		CrossAlignment: AlignCenter, // デフォルトは中央揃え
+		CrossAlignment: AlignCenter,
 		AutoCompress:   true,
+		Orientation:    Horizontal, // ★デフォルトは水平方向に設定
 	}
 }
 
-func (b *Box) RelPositions(o Orientation) ([]float64, []float64) {
+func (b *Box) RelPositions() ([]float64, []float64) {
 	if len(b.Children) == 0 {
 		return nil, nil
 	}
-	if o == Horizontal {
+	// ★引数ではなく自分自身の保持する方向を使う
+	if b.Orientation == Horizontal {
 		return b.horizontalRelPositions()
 	}
 	return b.verticalRelPositions()
@@ -56,7 +59,8 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 	childrenW := 0.0
 	childWs := make([]float64, n)
 
-	for i, child := range b.Children {
+	for i, comp := range b.Children {
+		child := comp.BaseElement() // ★ BaseElement() で実体を取り出す
 		w := child.BaseWidth() * child.WidthScale
 		childWs[i] = w
 		childrenW += w
@@ -66,10 +70,7 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 	gap := b.Gap
 	totalW := childrenW + float64(n-1)*b.Gap
 
-	// (要素幅の合計 + 隙間の合計幅) が コンテナの幅より大きい場合 (コンテナから要素がはみ出た場合)
 	if b.AutoCompress && totalW > parentW && n > 1 {
-		// コンテナの幅に収まるようなgapを逆算する
-		// (要素幅の合計) + (隙間 × 個数-1) = 親の幅 この方程式をgap(隙間)について解く
 		gap = (parentW - childrenW) / float64(n-1)
 		totalW = parentW
 	}
@@ -88,7 +89,8 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 	xs := make([]float64, n)
 	ys := make([]float64, n)
 
-	for i, child := range b.Children {
+	for i, c := range b.Children {
+		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
 		childH := child.BaseHeight() * child.HeightScale
 
 		var y float64
@@ -103,8 +105,6 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 
 		xs[i] = currentX
 		ys[i] = y
-
-		// 自分の幅と隙間を加算
 		currentX += childWs[i] + gap
 	}
 	return xs, ys
@@ -115,7 +115,8 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 	childrenH := 0.0
 	childHs := make([]float64, n)
 
-	for i, child := range b.Children {
+	for i, c := range b.Children {
+		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
 		h := child.BaseHeight() * child.HeightScale
 		childHs[i] = h
 		childrenH += h
@@ -125,10 +126,7 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 	gap := b.Gap
 	totalH := childrenH + float64(n-1)*b.Gap
 
-	// (要素高さの合計 + 隙間の合計高さ) が コンテナの高さより大きい場合 (コンテナから要素がはみ出た場合)
 	if b.AutoCompress && totalH > parentH && n > 1 {
-		// コンテナの高さに収まるようなgapを逆算する
-		// (要素高さの合計) + (隙間 × 個数-1) = 親の高さ この方程式をgap(隙間)について解く
 		gap = (parentH - childrenH) / float64(n-1)
 		totalH = parentH
 	}
@@ -147,7 +145,8 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 	xs := make([]float64, n)
 	ys := make([]float64, n)
 
-	for i, child := range b.Children {
+	for i, c := range b.Children {
+		child := c.BaseElement()
 		childW := child.BaseWidth() * child.WidthScale
 
 		var x float64
@@ -162,19 +161,20 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 
 		xs[i] = x
 		ys[i] = currentY
-
-		// 自分の高さと隙間を加算
 		currentY += childHs[i] + gap
 	}
 	return xs, ys
 }
 
-func (b *Box) Update(o Orientation) {
-	xs, ys := b.RelPositions(o)
+func (b *Box) Update() {
+	b.Element.Update()
+
+	xs, ys := b.RelPositions()
 	for i, x := range xs {
 		if i < len(b.Children) {
-			b.Children[i].XRelativeToParent = x
-			b.Children[i].YRelativeToParent = ys[i]
+			child := b.Children[i].BaseElement()
+			child.XRelativeToParent = x
+			child.YRelativeToParent = ys[i]
 		}
 	}
 }

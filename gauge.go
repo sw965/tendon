@@ -48,7 +48,7 @@ func newCounter(size, init float64) (*Counter, error) {
 			return fmt.Sprintf("%.0f", math.Ceil(current))
 		},
 	}
-	c.AppendChild(l.Element)
+	c.AppendChild(l)
 	c.updateLabel()
 	return c, nil
 }
@@ -101,7 +101,8 @@ func (c *Counter) Update() {
 
 func (c *Counter) updateLabel() {
 	txt := c.FormatFunc(c.Current)
-	c.Label.Update(txt, c.Label.Font().Source, c.Label.Font().Size)
+	c.Label.SetText(txt, c.Label.Font().Source, c.Label.Font().Size)
+	c.Element.Image = c.Label.Image
 }
 
 type Gauge struct {
@@ -137,7 +138,7 @@ func newGauge(w, h, max float64, barColor color.Color) (*Gauge, error) {
 	}
 
 	g.Counter.Element = base
-	g.AppendChild(counter.Label.Element)
+	g.AppendChild(counter.Label)
 	g.FormatFunc = func(current float64) string {
 		return fmt.Sprintf("%.0f / %.0f", math.Ceil(current), g.Max)
 	}

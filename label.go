@@ -62,7 +62,7 @@ func (l *Label) SetText(txt string, src *text.GoTextFaceSource, size float64) {
 	// テキストサイズの計測
 	w, h := text.Measure(l.text, l.font, 0)
 	if w <= 0 || h <= 0 {
-		l.Image = ebiten.NewImage(0, 0)
+		l.Image = nil
 		return
 	}
 

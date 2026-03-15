@@ -62,7 +62,7 @@ func TestButtonAutoFit(t *testing.T) {
 	box.AppendChild(btn2)
 	box.AppendChild(btn3)
 	box.AppendChild(btn4)
-	
+
 	// ★ 方向をプロパティで指定してから引数なしでUpdate
 	box.Orientation = tendon.Vertical
 	box.Update()

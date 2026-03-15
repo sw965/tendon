@@ -1,8 +1,8 @@
 package tendon
 
 import (
-	"slices"
 	"github.com/hajimehoshi/ebiten/v2"
+	"slices"
 )
 
 type Component interface {
@@ -33,7 +33,7 @@ func (cs Components) FindAllFromPoint(pointX, pointY float64, dst *Components) {
 		if !e.Visible {
 			continue
 		}
-		
+
 		// 子要素を再帰的に探索
 		e.Children.FindAllFromPoint(pointX, pointY, dst)
 
@@ -112,25 +112,33 @@ func (cs Components) UpdateDragMove() {
 	cursorX, cursorY := ebiten.CursorPosition()
 	cursorXf, cursorYf := float64(cursorX), float64(cursorY)
 
-	for _, c := range cs {
-		e := c.BaseElement()
-		if !e.isDragging {
-			continue
-		}
+	// 再帰的にドラッグ状態を更新する内部関数
+	var update func(Components)
+	update = func(elements Components) {
+		for _, c := range elements {
+			e := c.BaseElement()
+			if e.isDragging {
+				// 【行列ベースのリファクタリング】
+				// マウスの絶対座標を、親のローカル空間（回転・スケール適用前）の座標に逆変換する
+				toRelX, toRelY := e.AbsPosToRelPosToParent(cursorXf, cursorYf)
+				
+				// 開始時のマウスと要素の距離（オフセット）を維持する位置を計算
+				targetX := toRelX - e.dragOffsetX
+				targetY := toRelY - e.dragOffsetY
 
-		absWsc, absHsc := e.AbsWidthScale(), e.AbsHeightScale()
-		toAbsX := cursorXf - (e.dragOffsetX * absWsc)
-		toAbsY := cursorYf - (e.dragOffsetY * absHsc)
-		toRelX, toRelY := e.AbsPosToRelPosToParent(toAbsX, toAbsY)
+				e.DragDeltaX = targetX - e.XRelativeToParent
+				e.DragDeltaY = targetY - e.YRelativeToParent
 
-		e.DragDeltaX = toRelX - e.XRelativeToParent
-		e.DragDeltaY = toRelY - e.YRelativeToParent
-
-		if !e.ManualDrag {
-			e.XRelativeToParent = toRelX
-			e.YRelativeToParent = toRelY
+				if !e.ManualDrag {
+					e.XRelativeToParent = targetX
+					e.YRelativeToParent = targetY
+				}
+			}
+			// 子要素も忘れずにチェック（これで tmp3_test.go が動くようになります）
+			update(e.Children)
 		}
 	}
+	update(cs)
 }
 
 func (cs Components) Update() {
@@ -140,6 +148,7 @@ func (cs Components) Update() {
 }
 
 func (cs Components) Draw(screen *ebiten.Image) {
+	// TODO ダーディーを追加して計算量を省く
 	cs.SortByZAsc()
 	for _, c := range cs {
 		c.Draw(screen)

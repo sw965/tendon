@@ -45,9 +45,9 @@ func TestColorPaletteExtended(t *testing.T) {
 	grid.YRelativeToParent = 40
 
 	for i, info := range palette {
-		row := i / 4
 		col := i % 4
-		cell := grid.GetCell(row, col)
+		row := i / 4
+		cell := grid.GetCell(col, row)
 		if cell == nil {
 			continue
 		}

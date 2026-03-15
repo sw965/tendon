@@ -102,9 +102,10 @@ func (c *Counter) Update() {
 func (c *Counter) updateLabel() {
 	txt := c.FormatFunc(c.Current)
 	c.Label.SetText(txt, c.Label.Font().Source, c.Label.Font().Size)
-	c.Element.Image = c.Label.Image
 }
 
+// TODO gaugeで左から減るのか右から減るのかを指定出来るようにしておく？
+// TODO また、縦のゲージは回転で出来るはずだがちゃんと出来るかも確認しておく。
 type Gauge struct {
 	*Counter
 	Bar    *Element
@@ -142,6 +143,8 @@ func newGauge(w, h, max float64, barColor color.Color) (*Gauge, error) {
 	g.FormatFunc = func(current float64) string {
 		return fmt.Sprintf("%.0f / %.0f", math.Ceil(current), g.Max)
 	}
+	g.updateLabel() // ← 追加：新しいフォーマットで画像を作成
+	g.Refresh()     // ← 既存：バーの長さを合わせる
 	return g, nil
 }
 
@@ -176,6 +179,10 @@ func (g *Gauge) Update() {
 
 func (g *Gauge) Refresh() {
 	percent := g.Current / g.Max
+	// 現在のパーセンテージに応じて、Barの幅のスケールを決める
+	// またBarはBaseの子要素であり、Baseの画像に重なるように描写されるため
+	// WidthScaleが小さくなると、Baseの画像がその分だけむき出しになるため
+	// パーセンテージが減った分の量も、Baseの画像の色で判別出来る設計になっている
 	g.Bar.WidthScale = math.Max(0, math.Min(percent, 1.0))
 	if g.OnSync != nil {
 		g.OnSync(g)

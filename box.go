@@ -47,7 +47,7 @@ func (b *Box) RelPositions() ([]float64, []float64) {
 	if len(b.Children) == 0 {
 		return nil, nil
 	}
-	// ★引数ではなく自分自身の保持する方向を使う
+
 	if b.Orientation == Horizontal {
 		return b.horizontalRelPositions()
 	}

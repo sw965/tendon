@@ -69,5 +69,10 @@ func (l *Label) SetText(txt string, src *text.GoTextFaceSource, size float64) {
 	// math.Ceil で切り上げることで、端数による描画欠けを防止
 	img := ebiten.NewImage(int(math.Ceil(w)), int(math.Ceil(h)))
 	text.Draw(img, l.text, l.font, &text.DrawOptions{})
+
+	// 古い画像があればVRAMから解放する
+	if l.Image != nil {
+		l.Image.Dispose()
+	}
 	l.Image = img
 }

@@ -58,6 +58,25 @@ func (e *Element) Contains(pointX, pointY float64) bool {
 	return Rect{}.Contains(lx, ly, e)
 }
 
+func (e *Element) FindAllFromPoint(pointX, pointY float64, dst *Components) {
+	if !e.Visible {
+		return
+	}
+
+	e.sortChildren()
+
+	// 手前の要素（インデックスが大きい方）から逆順に調べる
+	for i := len(e.Children) - 1; i >= 0; i-- {
+		child := e.Children[i]
+		child.BaseElement().FindAllFromPoint(pointX, pointY, dst)
+	}
+
+	// 自分自身の判定
+	if !e.PassThrough && e.Contains(pointX, pointY) {
+		*dst = append(*dst, e)
+	}
+}
+
 func (e *Element) Overlaps(other Component) bool {
 	t := other.BaseElement()
 	if e.Image == nil || t.Image == nil {
@@ -101,4 +120,22 @@ func (e *Element) Overlaps(other Component) bool {
 	isBelowBTop := yaMax > ybMin
 
 	return isLeftOfBRight && isRightOfBLeft && isAboveBBottom && isBelowBTop
+}
+
+func (e *Element) FindAllOverlapping(target Component, dst *Components) {
+	if !e.Visible {
+		return
+	}
+
+	e.sortChildren()
+
+	// 手前から奥へ再帰探索
+	for i := len(e.Children) - 1; i >= 0; i-- {
+		e.Children[i].BaseElement().FindAllOverlapping(target, dst)
+	}
+
+	// 自身の判定
+	if e != target.BaseElement() && !e.PassThrough && e.Overlaps(target) {
+		*dst = append(*dst, e)
+	}
 }

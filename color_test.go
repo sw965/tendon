@@ -9,7 +9,7 @@ import (
 )
 
 type ColorTestGame struct {
-	elements tendon.Components // ★ Elements から変更
+	root tendon.Component
 }
 
 func (g *ColorTestGame) Update() error {
@@ -18,7 +18,7 @@ func (g *ColorTestGame) Update() error {
 
 func (g *ColorTestGame) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{45, 45, 50, 255})
-	g.elements.Draw(screen)
+	g.root.Draw(screen)
 }
 
 func (g *ColorTestGame) Layout(w, h int) (int, int) {
@@ -52,23 +52,20 @@ func TestColorPaletteExtended(t *testing.T) {
 			continue
 		}
 
-		// 1. セル自身（背景）に直接色を塗る
 		cell.Image = ebiten.NewImage(int(cellW), int(cellH))
 		cell.Image.Fill(info.c)
 
-		// 2. ラベルを作成
 		l, err := tendon.NewLabel(info.name, 20)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// 3. ラベルをセルの中央に配置して追加
-		cell.AppendChild(l) // ★ .Element を削除
+		cell.AppendChild(l)
 		l.PlaceCenterOf(cell)
 	}
 
 	game := &ColorTestGame{
-		elements: tendon.Components{grid}, // ★ .Element を削除
+		root: grid,
 	}
 
 	ebiten.SetWindowSize(850, 500)

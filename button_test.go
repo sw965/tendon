@@ -9,7 +9,7 @@ import (
 )
 
 type ButtonTestGame struct {
-	elements tendon.Components // ★ Elements から変更
+	root tendon.Component
 }
 
 func (g *ButtonTestGame) Update() error {
@@ -19,7 +19,7 @@ func (g *ButtonTestGame) Update() error {
 func (g *ButtonTestGame) Draw(screen *ebiten.Image) {
 	// 各ボタンの色が分かりやすいように、背景は暗めのグレーにする
 	screen.Fill(color.RGBA{40, 40, 45, 255})
-	g.elements.Draw(screen)
+	g.root.Draw(screen)
 }
 
 func (g *ButtonTestGame) Layout(w, h int) (int, int) {
@@ -57,18 +57,16 @@ func TestButtonAutoFit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// ★ .Element を付けずにそのまま追加できる！
 	box.AppendChild(btn1)
 	box.AppendChild(btn2)
 	box.AppendChild(btn3)
 	box.AppendChild(btn4)
 
-	// ★ 方向をプロパティで指定してから引数なしでUpdate
 	box.Orientation = tendon.Vertical
 	box.Update()
 
 	game := &ButtonTestGame{
-		elements: tendon.Components{box}, // ★ .Element を削除
+		root: box,
 	}
 
 	ebiten.SetWindowSize(640, 480)

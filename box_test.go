@@ -32,7 +32,7 @@ func (g *DynamicBoxGame) Update() error {
 		cx, cy := ebiten.CursorPosition()
 		var hits tendon.Components // ★ Elements から変更
 
-		tendon.Components{g.box}.FindAllFromPoint(float64(cx), float64(cy), &hits)
+		g.box.FindAllFromPoint(float64(cx), float64(cy), &hits)
 
 		for _, e := range hits {
 			// ★ eはインターフェースなので、ベースの実体(BaseElement)同士で比較する

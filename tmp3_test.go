@@ -22,31 +22,31 @@ func (g *DragAndRotateGame) Update() error {
 
 	// 1. 当たり判定（再帰的に全階層を探す）
 	var hits tendon.Components
-	tendon.Components{g.parent}.FindAllFromPoint(fmx, fmy, &hits) //
-	tendon.Components{g.parent}.UpdateHover(hits)               //
+	g.parent.FindAllFromPoint(fmx, fmy, &hits)
+	g.parent.UpdateHover(hits)
 
 	// 2. 左クリックでドラッグ開始
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		if len(hits) > 0 {
 			// 一番上に重なっている要素をドラッグ開始
-			hits[0].BaseElement().StartDrag() //
+			hits[0].BaseElement().StartDrag()
 		}
 	}
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		// 全てのドラッグを停止
-		tendon.Components{g.parent}.StopAllDrag() //
+		g.parent.StopAllDrag()
 	}
 
 	// 3. 右クリックで回転（15度ずつ）
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
 		if len(hits) > 0 {
 			e := hits[0].BaseElement()
-			e.SetAngle(e.GetAngle() + 15) //
+			e.SetAngle(e.GetAngle() + 15)
 		}
 	}
 
 	// 4. ドラッグ移動の実行（再帰的に処理される）
-	tendon.Components{g.parent}.UpdateDragMove() //
+	g.parent.UpdateDragMove()
 
 	return nil
 }
@@ -55,7 +55,7 @@ func (g *DragAndRotateGame) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{30, 30, 35, 255})
 
 	// 親と子を描画（親子関係があるので parent.Draw だけで子も描画される）
-	g.parent.Draw(screen) //
+	g.parent.Draw(screen)
 
 	// デバッグ情報の表示
 	msg := "SCENE GRAPH TEST\n"
@@ -64,9 +64,9 @@ func (g *DragAndRotateGame) Draw(screen *ebiten.Image) {
 	msg += "Right Click : Rotate (+15deg)\n\n"
 
 	msg += fmt.Sprintf("[Parent]\n Angle: %.0f (Abs: %.0f)\n", 
-		g.parent.GetAngle(), g.parent.GetAbsAngle()) //
+		g.parent.GetAngle(), g.parent.GetAbsAngle())
 	msg += fmt.Sprintf("[Child]\n Angle: %.0f (Abs: %.0f)\n", 
-		g.child.GetAngle(), g.child.GetAbsAngle())   //
+		g.child.GetAngle(), g.child.GetAbsAngle())
 	
 	ebitenutil.DebugPrint(screen, msg)
 }
@@ -80,7 +80,7 @@ func TestDragAndRotateHierarchy(t *testing.T) {
 	parent.Image.Fill(color.RGBA{60, 60, 65, 255})
 	parent.XRelativeToParent, parent.YRelativeToParent = 400, 300
 	parent.AnchorX, parent.AnchorY = 0.5, 0.5
-	parent.Draggable = true //
+	parent.Draggable = true
 
 	// 子要素：赤い小さな正方形
 	child := tendon.NewElement()
@@ -89,10 +89,10 @@ func TestDragAndRotateHierarchy(t *testing.T) {
 	// 親の中心から少し右上に配置
 	child.XRelativeToParent, child.YRelativeToParent = 100, -100
 	child.AnchorX, child.AnchorY = 0.5, 0.5
-	child.Draggable = true //
+	child.Draggable = true
 
 	// シーングラフの構築
-	parent.AppendChild(child) //
+	parent.AppendChild(child)
 
 	game := &DragAndRotateGame{
 		parent: parent,

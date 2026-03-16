@@ -41,7 +41,7 @@ type Element struct {
 	Visible     bool
 	Enabled     bool
 	PassThrough bool
-	Z           int
+	z           int
 
 	// ドラッグ関連
 	Draggable   bool
@@ -66,7 +66,7 @@ type Element struct {
 	// カプセル化の検討
 	Children        Components
 	Parent          *Element
-	childOrderDirty bool
+	childrenOrderDirty bool
 
 	Rotation float64
 	// パーセンテージ
@@ -83,7 +83,7 @@ func NewElement() *Element {
 		EasingFunc:      func(current, target float64) float64 { return target },
 		AnchorX:         0.5,
 		AnchorY:         0.5,
-		childOrderDirty: true,
+		childrenOrderDirty: true,
 	}
 	e.SetScale(1.0)
 	return e
@@ -93,6 +93,8 @@ func (e *Element) Update() {
 	if !e.Visible {
 		return
 	}
+
+	e.sortChildren()
 
 	e.isJustMoveFinished = false
 	if e.isMoving {
@@ -122,16 +124,12 @@ func (e *Element) Draw(screen *ebiten.Image) {
 
 	if e.Image != nil {
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM = e.TransformMatrix()
+		op.GeoM = e.AbsGeoM()
 		op.Filter = e.Filter
 		screen.DrawImage(e.Image, op)
 	}
 
-	if e.childOrderDirty {
-		e.Children.SortByZAsc()
-		e.childOrderDirty = false
-	}
-
+	e.sortChildren()
 	for _, child := range e.Children {
 		child.Draw(screen)
 	}
@@ -141,10 +139,34 @@ func (e *Element) BaseElement() *Element {
 	return e
 }
 
+func (e *Element) Z() int {
+    return e.z
+}
+
+func (e *Element) SetZ(z int) {
+    if e.z == z {
+        return
+    }
+    e.z = z
+    // 自身のZが変わったら、親にソートし直しを要求する
+    if e.Parent != nil {
+        e.Parent.childrenOrderDirty = true
+    }
+}
+
+func (e *Element) sortChildren() {
+	if e.childrenOrderDirty {
+		slices.SortStableFunc(e.Children, func(a, b Component) int {
+			return a.BaseElement().z - b.BaseElement().z
+		})
+		e.childrenOrderDirty = false
+	}
+}
+
 func (e *Element) AppendChild(child Component) {
 	child.BaseElement().Parent = e
 	e.Children = append(e.Children, child)
-	e.childOrderDirty = true
+	e.childrenOrderDirty = true
 }
 
 func (e *Element) RemoveChild(target Component) bool {
@@ -158,6 +180,7 @@ func (e *Element) RemoveChild(target Component) bool {
 
 	// スライスから削除
 	e.Children = slices.Delete(e.Children, index, index+1)
+	e.childrenOrderDirty = true
 	return true
 }
 
@@ -171,27 +194,26 @@ func (e *Element) Dispose() {
 	}
 }
 
-// LocalMatrix は「親要素から見た」この要素自身の相対的な変換行列を作成します。
-func (e *Element) LocalMatrix() ebiten.GeoM {
+func (e *Element) RelGeoM() ebiten.GeoM {
 	var m ebiten.GeoM
 	w, h := e.BaseWidth(), e.BaseHeight()
-	// 画像のアンカー位置を原点(0,0)に持ってくる
+	// 画像のアンカー位置を原点(0,0)とみなす
 	m.Translate(-w*e.AnchorX, -h*e.AnchorY)
-	// ローカルのスケールと回転を適用
+	// 原点 を中心としたスケール(縮小・拡大)の適用
 	m.Scale(e.WidthScale, e.HeightScale)
+	// 原点 を中心とした回転の適用
 	m.Rotate(e.Rotation)
-	// 親要素の空間内での配置位置へ移動
-	m.Translate(e.XRelativeToParent+w*e.AnchorX*e.WidthScale, e.YRelativeToParent+h*e.AnchorY*e.HeightScale)
+
+	m.Translate(w*e.AnchorX*e.WidthScale, h*e.AnchorY*e.HeightScale)
+	// 親から見た相対位置に移動する
+	m.Translate(e.XRelativeToParent, e.YRelativeToParent)
 	return m
 }
 
-// TransformMatrix は、この要素の画面上での最終的な変換行列（ワールド行列）を返します。
-func (e *Element) TransformMatrix() ebiten.GeoM {
-	m := e.LocalMatrix()
-	// 親要素が存在する場合、親の変換行列を「掛け合わせる(Concat)」ことで、
-	// 親の移動・回転・スケールに完全に追従する（シーングラフ）ようになります。
+func (e *Element) AbsGeoM() ebiten.GeoM {
+	m := e.RelGeoM()
 	if e.Parent != nil {
-		m.Concat(e.Parent.TransformMatrix())
+		m.Concat(e.Parent.AbsGeoM())
 	}
 	return m
 }

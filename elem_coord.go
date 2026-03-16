@@ -6,7 +6,7 @@ import (
 
 // AbsPos は要素の「左上」の画面上の絶対座標を返します。
 func (e *Element) AbsPos() (float64, float64) {
-	m := e.TransformMatrix()
+	m := e.AbsGeoM()
 	return m.Apply(0, 0)
 }
 
@@ -16,7 +16,7 @@ func (e *Element) AbsPosToRelPosToParent(absX, absY float64) (relX, relY float64
 		return absX, absY
 	}
 	// 親の行列を逆変換(Invert)して通すだけで、親がどんなに回転・拡大していても一発でローカル座標に戻ります
-	pm := e.Parent.TransformMatrix()
+	pm := e.Parent.AbsGeoM()
 	pm.Invert()
 	return pm.Apply(absX, absY)
 }
@@ -27,7 +27,7 @@ func (e *Element) SetAbsPos(absX, absY float64) {
 }
 
 func (e *Element) LocalPosToAbsPos(lx, ly float64) (float64, float64) {
-	m := e.TransformMatrix()
+	m := e.AbsGeoM()
 	w, h := e.BaseWidth(), e.BaseHeight()
 	tx := lx + w*e.AnchorX
 	ty := ly + h*e.AnchorY
@@ -35,15 +35,24 @@ func (e *Element) LocalPosToAbsPos(lx, ly float64) (float64, float64) {
 }
 
 func (e *Element) PointToLocalPos(pointX, pointY float64) (float64, float64) {
-	m := e.TransformMatrix()
+	m := e.AbsGeoM()
 	m.Invert()
-	tx, ty := m.Apply(pointX, pointY)
+	// (pointX, pointY) を 自身(e) の スケールや回転を元に戻した状態の画像の左上を 原点(0, 0) としたときの相対座標へ変換する
+	xRelToImg, yRelToImg := m.Apply(pointX, pointY)
 	w, h := e.BaseWidth(), e.BaseHeight()
-	return tx - w*e.AnchorX, ty - h*e.AnchorY
+	// ローカル座標は「スケールや回転を元に戻した状態の画像に対するアンカーを原点とみなした座標」が定義
+	// 例えば、画像サイズを w = 200, h = 200, e.AnchorX, e.AnchorY = 0.5 (画像の中心) としたとき
+	// 画像から見て、(50, 50) の地点をクリックしたとするならば、
+	// lx = 50 - 200 * 0.5 = -50
+	// これは、アンカーから-50ズレているX座標をクリックしたことを意味する
+	// すなわち、アンカーを原点としたとき、-50のX座標をクリックした事と同義であり、ローカル座標の定義と一致する 
+	lx := xRelToImg - w*e.AnchorX
+	ly := yRelToImg - h*e.AnchorY
+	return lx, ly
 }
 
 func (e *Element) BoundingBox() (float64, float64, float64, float64) {
-	m := e.TransformMatrix()
+	m := e.AbsGeoM()
 	w, h := e.BaseWidth(), e.BaseHeight()
 
 	p1x, p1y := m.Apply(0, 0)

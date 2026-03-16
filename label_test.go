@@ -10,9 +10,9 @@ import (
 )
 
 type LabelTestGame struct {
-	elements tendon.Components // ★ Elements から変更
-	counter  int
-	dynamic  *tendon.Label
+	root    *tendon.Element
+	counter int
+	dynamic *tendon.Label
 }
 
 func (g *LabelTestGame) Update() error {
@@ -29,7 +29,7 @@ func (g *LabelTestGame) Update() error {
 
 func (g *LabelTestGame) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{30, 30, 35, 255})
-	g.elements.Draw(screen)
+	g.root.Draw(screen)
 }
 
 func (g *LabelTestGame) Layout(w, h int) (int, int) {
@@ -60,12 +60,13 @@ func TestLabelRefactored(t *testing.T) {
 	scaledLabel.YRelativeToParent = 250
 	scaledLabel.SetScale(2.5)
 
+	root := tendon.NewElement()
+	root.AppendChild(staticLabel)
+	root.AppendChild(dynamicLabel)
+	root.AppendChild(scaledLabel)
+
 	game := &LabelTestGame{
-		elements: tendon.Components{
-			staticLabel,  // ★ .Element を削除
-			dynamicLabel, // ★ .Element を削除
-			scaledLabel,  // ★ .Element を削除
-		},
+		root:    root,
 		dynamic: dynamicLabel,
 	}
 

@@ -115,9 +115,9 @@ func (g *Grid) SetCell(c, r int, newElem *Element) {
 	// 3. 親子関係の更新
 	for i, child := range g.Children {
 		if child == oldElem {
-			// TODO Zのダーディーのフラグが立たないので修正しておく。
 			g.Children[i] = newElem
 			newElem.Parent = g.Element
+			g.childrenOrderDirty = true
 			break
 		}
 	}

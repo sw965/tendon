@@ -91,17 +91,17 @@ func (e *Element) Overlaps(other Component) bool {
 		for _, mc := range e.CircleColliders {
 			mx, my := e.LocalPosToAbsPos(mc.LocalX, mc.LocalY)
 			// ⭕️ 半径にスケールを適用
-			mRadius := mc.Radius * eScale 
+			mRadius := mc.Radius * eScale
 
 			for _, tc := range t.CircleColliders {
 				tx, ty := t.LocalPosToAbsPos(tc.LocalX, tc.LocalY)
 				// ⭕️ 半径にスケールを適用
-				tRadius := tc.Radius * tScale 
+				tRadius := tc.Radius * tScale
 
 				dx, dy := mx-tx, my-ty
 				distSq := dx*dx + dy*dy
 				// ⭕️ スケール済みの半径同士で比較する
-				radSum := mRadius + tRadius 
+				radSum := mRadius + tRadius
 				if distSq <= radSum*radSum {
 					return true
 				}

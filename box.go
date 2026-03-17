@@ -2,6 +2,7 @@ package tendon
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"slices"
 )
 
 type Orientation int
@@ -11,40 +12,58 @@ const (
 	Vertical
 )
 
-// BoxPosition は計算された各要素の相対座標を保持します。
-type BoxPosition struct {
-	RelX float64
-	RelY float64
-}
-
 type Box struct {
 	*Element
 	Gap            float64
 	MainAlignment  Alignment
 	CrossAlignment Alignment
 	AutoCompress   bool
-	Orientation    Orientation // ★追加：Update() を引数なしにするため方向を保持する
+	Orientation    Orientation
+	LayoutChildren Components
 }
 
-// NewBox は指定されたサイズ(w, h)と隙間(gap)で新しい整列コンテナを作成します。
 func NewBox(w, h, gap float64) *Box {
-	container := NewElement()
+	base := NewElement()
 	if w > 0 && h > 0 {
-		container.Image = ebiten.NewImage(int(w), int(h))
+		base.Image = ebiten.NewImage(int(w), int(h))
 	}
 
 	return &Box{
-		Element:        container,
+		Element:        base,
 		Gap:            gap,
 		MainAlignment:  AlignCenter,
 		CrossAlignment: AlignCenter,
 		AutoCompress:   true,
-		Orientation:    Horizontal, // ★デフォルトは水平方向に設定
+		Orientation:    Horizontal,
+		LayoutChildren: Components{},
 	}
 }
 
+func (b *Box) AppendChild(child Component) {
+	b.Element.AppendChild(child)
+	b.LayoutChildren = append(b.LayoutChildren, child)
+}
+
+func (b *Box) RemoveChild(target Component) bool {
+	removed := b.Element.RemoveChild(target)
+	if !removed {
+		return false
+	}
+
+	t := target.BaseElement()
+	index := slices.IndexFunc(b.LayoutChildren, func(c Component) bool {
+		return c.BaseElement() == t
+	})
+
+	if index != -1 {
+		b.LayoutChildren = slices.Delete(b.LayoutChildren, index, index+1)
+	}
+
+	return true
+}
+
 func (b *Box) RelPositions() ([]float64, []float64) {
-	if len(b.Children) == 0 {
+	if len(b.LayoutChildren) == 0 {
 		return nil, nil
 	}
 
@@ -55,12 +74,12 @@ func (b *Box) RelPositions() ([]float64, []float64) {
 }
 
 func (b *Box) horizontalRelPositions() ([]float64, []float64) {
-	n := len(b.Children)
+	n := len(b.LayoutChildren)
 	childrenW := 0.0
 	childWs := make([]float64, n)
 
-	for i, comp := range b.Children {
-		child := comp.BaseElement() // ★ BaseElement() で実体を取り出す
+	for i, comp := range b.LayoutChildren {
+		child := comp.BaseElement()
 		w := child.BaseWidth() * child.WidthScale
 		childWs[i] = w
 		childrenW += w
@@ -89,7 +108,7 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 	xs := make([]float64, n)
 	ys := make([]float64, n)
 
-	for i, c := range b.Children {
+	for i, c := range b.LayoutChildren {
 		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
 		childH := child.BaseHeight() * child.HeightScale
 
@@ -111,11 +130,11 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 }
 
 func (b *Box) verticalRelPositions() ([]float64, []float64) {
-	n := len(b.Children)
+	n := len(b.LayoutChildren)
 	childrenH := 0.0
 	childHs := make([]float64, n)
 
-	for i, c := range b.Children {
+	for i, c := range b.LayoutChildren {
 		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
 		h := child.BaseHeight() * child.HeightScale
 		childHs[i] = h
@@ -145,7 +164,7 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 	xs := make([]float64, n)
 	ys := make([]float64, n)
 
-	for i, c := range b.Children {
+	for i, c := range b.LayoutChildren {
 		child := c.BaseElement()
 		childW := child.BaseWidth() * child.WidthScale
 
@@ -166,13 +185,11 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 	return xs, ys
 }
 
-func (b *Box) Update() {
-	b.Element.Update()
-
+func (b *Box) Reflow() {
 	xs, ys := b.RelPositions()
 	for i, x := range xs {
-		if i < len(b.Children) {
-			child := b.Children[i].BaseElement()
+		if i < len(b.LayoutChildren) {
+			child := b.LayoutChildren[i].BaseElement()
 			child.XRelativeToParent = x
 			child.YRelativeToParent = ys[i]
 		}

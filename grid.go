@@ -3,122 +3,164 @@ package tendon
 import (
 	"image/color"
 	"math"
+	"slices"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
+// TODO gridの設計を考えておく。枠と中身を切り分ける？
 type Grid struct {
 	*Element
-	rows int
-	cols int
-	// Element.Childrenの要素と同じポインターを持つ事を想定
-	// matrix[r][c] の順でアクセスする二次元スライス
-	matrix [][]*Element
+	Rows           int
+	Cols           int
+	CellW          float64
+	CellH          float64
+	Gap            float64
+	// TODO 二次元にするか検討する
+	LayoutChildren Components
 }
 
-// NewGrid は指定された行列で空のグリッドを生成します
 func NewGrid(cols, rows int, cellW, cellH, gap float64) *Grid {
-	container := NewElement()
+	base := NewElement()
 
-	// グリッド全体のサイズを計算
+	// グリッド全体のサイズ
 	totalW := float64(cols)*cellW + float64(cols-1)*gap
 	totalH := float64(rows)*cellH + float64(rows-1)*gap
 
-	// 透明な背景画像をセットすることで、Elementとしてのサイズを持たせる
 	if totalW > 0 && totalH > 0 {
-		// 欠けを防ぐために、切り上げ
-		container.Image = ebiten.NewImage(int(math.Ceil(totalW)), int(math.Ceil(totalH)))
+		// baseに透明な画像をセットする
+		base.Image = ebiten.NewImage(int(math.Ceil(totalW)), int(math.Ceil(totalH)))
 	}
 
-	// 二次元スライスの初期化 (行ベース)
-	matrix := make([][]*Element, rows)
-	for r := 0; r < rows; r++ {
-		matrix[r] = make([]*Element, cols)
-		for c := 0; c < cols; c++ {
-			cell := NewElement()
-			if cellW > 0 && cellH > 0 {
-				cell.Image = ebiten.NewImage(int(math.Ceil(cellW)), int(math.Ceil(cellH)))
-			}
+	g := &Grid{
+		Element:        base,
+		Cols:           cols,
+		Rows:           rows,
+		CellW:          cellW,
+		CellH:          cellH,
+		Gap:            gap,
+		LayoutChildren: Components{},
+	}
 
-			// 座標を計算してセット
-			// 列(c)がX座標、行(r)がY座標に対応
-			cell.XRelativeToParent = float64(c) * (cellW + gap)
-			cell.YRelativeToParent = float64(r) * (cellH + gap)
-
-			container.AppendChild(cell) // 親要素（コンテナ）に追加
-			matrix[r][c] = cell
+	for i := 0; i < cols*rows; i++ {
+		cell := NewElement()
+		if cellW > 0 && cellH > 0 {
+			cell.Image = ebiten.NewImage(int(math.Ceil(cellW)), int(math.Ceil(cellH)))
 		}
+		g.AppendChild(cell)
 	}
 
-	return &Grid{
-		Element: container,
-		rows:    rows,
-		cols:    cols,
-		matrix:  matrix,
-	}
+	g.Reflow()
+	return g
 }
 
-// NewBorderGrid は、各セルにシンプルな枠線が描画されたグリッドを生成します。
 func NewBorderGrid(cols, rows int, cellW, cellH, gap float64, borderColor color.Color, borderWidth float64) *Grid {
-	// ベースとなるグリッドを生成
-	// TODO gじゃなくてgridにする？
 	g := NewGrid(cols, rows, cellW, cellH, gap)
 
-	// 欠けを防ぐために切り上げ
 	wi := int(math.Ceil(cellW))
 	hi := int(math.Ceil(cellH))
 	wf := float64(wi)
 	hf := float64(hi)
 
-	for r := 0; r < rows; r++ {
-		for c := 0; c < cols; c++ {
-			cell := g.GetCell(c, r)
-
-			// セルのサイズに合わせてImageを作成
-			img := ebiten.NewImage(wi, hi)
-
-			// 四辺に長方形を描画して枠線とする
-			ebitenutil.DrawRect(img, 0, 0, wf, borderWidth, borderColor)
-			ebitenutil.DrawRect(img, 0, hf-borderWidth, wf, borderWidth, borderColor)
-			ebitenutil.DrawRect(img, 0, 0, borderWidth, hf, borderColor)
-			ebitenutil.DrawRect(img, wf-borderWidth, 0, borderWidth, hf, borderColor)
-
-			cell.Image = img
+	// 最初に追加された空セルに枠線を描画する
+	for i, c := range g.LayoutChildren {
+		if i >= cols*rows {
+			break
 		}
+		cell := c.BaseElement()
+		img := ebiten.NewImage(wi, hi)
+		ebitenutil.DrawRect(img, 0, 0, wf, borderWidth, borderColor)
+		ebitenutil.DrawRect(img, 0, hf-borderWidth, wf, borderWidth, borderColor)
+		ebitenutil.DrawRect(img, 0, 0, borderWidth, hf, borderColor)
+		ebitenutil.DrawRect(img, wf-borderWidth, 0, borderWidth, hf, borderColor)
+		cell.Image = img
 	}
 	return g
 }
 
-func (g *Grid) GetCell(c, r int) *Element {
-	if c < 0 || c >= g.cols || r < 0 || r >= g.rows {
-		return nil
-	}
-	return g.matrix[r][c]
+// AppendChild は Box と同様に本体と名簿の両方に追加します。
+func (g *Grid) AppendChild(child Component) {
+	g.Element.AppendChild(child)
+	g.LayoutChildren = append(g.LayoutChildren, child)
 }
 
-// SetCell は特定のセルの Element 自体を入れ替えます
-func (g *Grid) SetCell(c, r int, newElem *Element) {
-	if c < 0 || c >= g.cols || r < 0 || r >= g.rows {
+// RemoveChild は Box と同様に両方から削除します。
+func (g *Grid) RemoveChild(target Component) bool {
+	removed := g.Element.RemoveChild(target)
+	if !removed {
+		return false
+	}
+
+	t := target.BaseElement()
+	index := slices.IndexFunc(g.LayoutChildren, func(c Component) bool {
+		return c.BaseElement() == t
+	})
+
+	if index != -1 {
+		g.LayoutChildren = slices.Delete(g.LayoutChildren, index, index+1)
+	}
+	return true
+}
+
+func (g *Grid) GetCell(c, r int) Component {
+	if c < 0 || c >= g.Cols || r < 0 || r >= g.Rows {
+		return nil
+	}
+	index := r*g.Cols + c
+	if index < len(g.LayoutChildren) {
+		return g.LayoutChildren[index]
+	}
+	return nil
+}
+
+// SetCell は特定のセルのコンポーネントを安全に入れ替えます。
+// ★ 引数を Component に変更し、古い要素のメモリリークを塞ぎました。
+func (g *Grid) SetCell(c, r int, newElem Component) {
+	if c < 0 || c >= g.Cols || r < 0 || r >= g.Rows {
+		return
+	}
+	index := r*g.Cols + c
+	if index >= len(g.LayoutChildren) {
 		return
 	}
 
-	oldElem := g.matrix[r][c]
+	oldElem := g.LayoutChildren[index]
+	oldBase := oldElem.BaseElement()
 
-	// 1. 座標の継承（入れ替えるなら位置を合わせるのが親切）
-	newElem.XRelativeToParent = oldElem.XRelativeToParent
-	newElem.YRelativeToParent = oldElem.YRelativeToParent
+	// ★ 重要：古い要素の親参照を切り、ガベージコレクション(メモリ解放)の対象にする
+	oldBase.Parent = nil
 
-	// 2. 内部マトリックスの更新 (行ベース)
-	g.matrix[r][c] = newElem
+	// 新しい要素の親を設定
+	newBase := newElem.BaseElement()
+	newBase.Parent = g.Element
 
-	// 3. 親子関係の更新
+	// 名簿の入れ替え
+	g.LayoutChildren[index] = newElem
+
+	// 本体の描画ツリー(Children)の入れ替え
 	for i, child := range g.Children {
-		if child == oldElem {
+		if child.BaseElement() == oldBase {
 			g.Children[i] = newElem
-			newElem.Parent = g.Element
 			g.childrenOrderDirty = true
 			break
 		}
+	}
+
+	// TODO 必要か検討する
+	g.Reflow()
+}
+
+// Reflow は LayoutChildren の並び順に従って、自動的に折り返してグリッド状に整列させます。
+func (g *Grid) Reflow() {
+	for i, c := range g.LayoutChildren {
+		child := c.BaseElement()
+
+		// インデックスから 列(col) と 行(row) を計算
+		col := i % g.Cols
+		row := i / g.Cols
+
+		child.XRelativeToParent = float64(col) * (g.CellW + g.Gap)
+		child.YRelativeToParent = float64(row) * (g.CellH + g.Gap)
 	}
 }

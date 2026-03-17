@@ -39,10 +39,10 @@ func (e *Element) StartDrag() {
 
 	e.isDragging = true
 	cursorX, cursorY := ebiten.CursorPosition()
-	
+
 	// マウスの絶対座標を、親のローカル座標系での座標に一発で変換
 	relMouseX, relMouseY := e.AbsPosToRelPosToParent(float64(cursorX), float64(cursorY))
-	
+
 	// 要素の左上(XRelativeToParent)から見た、マウスの相対的なオフセットを記録
 	// これにより、要素のどこを掴んでもピタッと吸着します
 	e.dragOffsetX = relMouseX - e.XRelativeToParent
@@ -63,7 +63,7 @@ func (e *Element) UpdateDragMove() {
 	update = func(target *Element) {
 		if target.isDragging {
 			toRelX, toRelY := target.AbsPosToRelPosToParent(cursorXf, cursorYf)
-			
+
 			targetX := toRelX - target.dragOffsetX
 			targetY := toRelY - target.dragOffsetY
 

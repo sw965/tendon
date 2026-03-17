@@ -64,8 +64,8 @@ type Element struct {
 	EasingFunc         EasingFunc
 
 	// カプセル化の検討
-	Children        Components
-	Parent          *Element
+	Children           Components
+	Parent             *Element
 	childrenOrderDirty bool
 
 	Rotation float64
@@ -78,11 +78,11 @@ type Element struct {
 
 func NewElement() *Element {
 	e := &Element{
-		Visible:         true,
-		Enabled:         true,
-		EasingFunc:      func(current, target float64) float64 { return target },
-		AnchorX:         0.5,
-		AnchorY:         0.5,
+		Visible:            true,
+		Enabled:            true,
+		EasingFunc:         func(current, target float64) float64 { return target },
+		AnchorX:            0.5,
+		AnchorY:            0.5,
 		childrenOrderDirty: true,
 	}
 	e.SetScale(1.0)
@@ -112,7 +112,13 @@ func (e *Element) Update() {
 		}
 	}
 
-	for _, child := range e.Children {
+	// イテレーションを壊さないためのコピー
+	// 例えば、child.Updateでe.Childrenを削除したとき、その後のループが壊れる
+	// コピーすれば、e.Children = nil としてしまっても、ccはnilにならない
+	// ただし、浅いコピーであるから、childの状態を書き換えることは出来る
+	cc := make(Components, len(e.Children))
+	copy(cc, e.Children)
+	for _, child := range cc {
 		child.Update()
 	}
 }
@@ -130,7 +136,9 @@ func (e *Element) Draw(screen *ebiten.Image) {
 	}
 
 	e.sortChildren()
-	for _, child := range e.Children {
+	cc := make(Components, len(e.Children))
+	copy(cc, e.Children)
+	for _, child := range cc {
 		child.Draw(screen)
 	}
 }
@@ -140,18 +148,18 @@ func (e *Element) BaseElement() *Element {
 }
 
 func (e *Element) Z() int {
-    return e.z
+	return e.z
 }
 
 func (e *Element) SetZ(z int) {
-    if e.z == z {
-        return
-    }
-    e.z = z
-    // 自身のZが変わったら、親にソートし直しを要求する
-    if e.Parent != nil {
-        e.Parent.childrenOrderDirty = true
-    }
+	if e.z == z {
+		return
+	}
+	e.z = z
+	// 自身のZが変わったら、親にソートし直しを要求する
+	if e.Parent != nil {
+		e.Parent.childrenOrderDirty = true
+	}
 }
 
 func (e *Element) sortChildren() {
@@ -170,15 +178,17 @@ func (e *Element) AppendChild(child Component) {
 }
 
 func (e *Element) RemoveChild(target Component) bool {
-	index := slices.Index(e.Children, target)
+	t := target.BaseElement()
+
+	index := slices.IndexFunc(e.Children, func(c Component) bool {
+		return c.BaseElement() == t
+	})
+
 	if index == -1 {
 		return false
 	}
 
-	// 子要素の親参照を解除
-	target.BaseElement().Parent = nil
-
-	// スライスから削除
+	t.Parent = nil
 	e.Children = slices.Delete(e.Children, index, index+1)
 	e.childrenOrderDirty = true
 	return true

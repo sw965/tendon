@@ -63,11 +63,11 @@ func (g *DragAndRotateGame) Draw(screen *ebiten.Image) {
 	msg += "Left Click  : Drag Move\n"
 	msg += "Right Click : Rotate (+15deg)\n\n"
 
-	msg += fmt.Sprintf("[Parent]\n Angle: %.0f (Abs: %.0f)\n", 
+	msg += fmt.Sprintf("[Parent]\n Angle: %.0f (Abs: %.0f)\n",
 		g.parent.GetAngle(), g.parent.GetAbsAngle())
-	msg += fmt.Sprintf("[Child]\n Angle: %.0f (Abs: %.0f)\n", 
+	msg += fmt.Sprintf("[Child]\n Angle: %.0f (Abs: %.0f)\n",
 		g.child.GetAngle(), g.child.GetAbsAngle())
-	
+
 	ebitenutil.DebugPrint(screen, msg)
 }
 

@@ -115,11 +115,11 @@ func (e *Element) PlaceLeftOfRotated(target Component, margin float64, align Ali
 
 	// ターゲットのピボットから見た、配置対象(e)のピボットの相対位置を計算
 	// ew_abs と margin(画面ピクセル) はターゲットのスケールで割り戻してローカル単位にする
-	lxPivot := -(ew_abs*(1-e.AnchorX) + margin) / twsc - (tw * t.AnchorX)
+	lxPivot := -(ew_abs*(1-e.AnchorX)+margin)/twsc - (tw * t.AnchorX)
 	lyPivot := e.calcRotatedAlign(th, e.BaseHeight()*(e.AbsHeightScale()/t.AbsHeightScale()), t.AnchorY, e.AnchorY, align)
 
 	wx, wy := t.LocalPosToAbsPos(lxPivot, lyPivot)
-	e.SetAbsPos(wx - e.AbsWidth()*e.AnchorX, wy - e.AbsHeight()*e.AnchorY)
+	e.SetAbsPos(wx-e.AbsWidth()*e.AnchorX, wy-e.AbsHeight()*e.AnchorY)
 }
 
 func (e *Element) PlaceRightOfRotated(target Component, margin float64, align Alignment) {
@@ -128,11 +128,11 @@ func (e *Element) PlaceRightOfRotated(target Component, margin float64, align Al
 	tw, th := t.BaseWidth(), t.BaseHeight()
 	twsc := t.AbsWidthScale()
 
-	lxPivot := (tw * (1 - t.AnchorX)) + (margin / twsc) + (e.AbsWidth()*e.AnchorX / twsc)
+	lxPivot := (tw * (1 - t.AnchorX)) + (margin / twsc) + (e.AbsWidth() * e.AnchorX / twsc)
 	lyPivot := e.calcRotatedAlign(th, e.BaseHeight()*(e.AbsHeightScale()/t.AbsHeightScale()), t.AnchorY, e.AnchorY, align)
 
 	wx, wy := t.LocalPosToAbsPos(lxPivot, lyPivot)
-	e.SetAbsPos(wx - e.AbsWidth()*e.AnchorX, wy - e.AbsHeight()*e.AnchorY)
+	e.SetAbsPos(wx-e.AbsWidth()*e.AnchorX, wy-e.AbsHeight()*e.AnchorY)
 }
 
 func (e *Element) PlaceAboveRotated(target Component, margin float64, align Alignment) {
@@ -142,10 +142,10 @@ func (e *Element) PlaceAboveRotated(target Component, margin float64, align Alig
 	thsc := t.AbsHeightScale()
 
 	lxPivot := e.calcRotatedAlign(tw, e.BaseWidth()*(e.AbsWidthScale()/t.AbsWidthScale()), t.AnchorX, e.AnchorX, align)
-	lyPivot := -(th * t.AnchorY) - (margin / thsc) - (e.AbsHeight()*(1-e.AnchorY) / thsc)
+	lyPivot := -(th * t.AnchorY) - (margin / thsc) - (e.AbsHeight() * (1 - e.AnchorY) / thsc)
 
 	wx, wy := t.LocalPosToAbsPos(lxPivot, lyPivot)
-	e.SetAbsPos(wx - e.AbsWidth()*e.AnchorX, wy - e.AbsHeight()*e.AnchorY)
+	e.SetAbsPos(wx-e.AbsWidth()*e.AnchorX, wy-e.AbsHeight()*e.AnchorY)
 }
 
 func (e *Element) PlaceBelowRotated(target Component, margin float64, align Alignment) {
@@ -155,10 +155,10 @@ func (e *Element) PlaceBelowRotated(target Component, margin float64, align Alig
 	thsc := t.AbsHeightScale()
 
 	lxPivot := e.calcRotatedAlign(tw, e.BaseWidth()*(e.AbsWidthScale()/t.AbsWidthScale()), t.AnchorX, e.AnchorX, align)
-	lyPivot := (th * (1 - t.AnchorY)) + (margin / thsc) + (e.AbsHeight()*e.AnchorY / thsc)
+	lyPivot := (th * (1 - t.AnchorY)) + (margin / thsc) + (e.AbsHeight() * e.AnchorY / thsc)
 
 	wx, wy := t.LocalPosToAbsPos(lxPivot, lyPivot)
-	e.SetAbsPos(wx - e.AbsWidth()*e.AnchorX, wy - e.AbsHeight()*e.AnchorY)
+	e.SetAbsPos(wx-e.AbsWidth()*e.AnchorX, wy-e.AbsHeight()*e.AnchorY)
 }
 
 func (e *Element) calcRotatedAlign(targetSize, elemSize, targetAnchor, elemAnchor float64, align Alignment) float64 {

@@ -80,7 +80,7 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 
 	for i, comp := range b.LayoutChildren {
 		child := comp.BaseElement()
-		w := child.BaseWidth() * child.WidthScale
+		w := child.BaseWidth() * child.widthScale
 		childWs[i] = w
 		childrenW += w
 	}
@@ -110,7 +110,7 @@ func (b *Box) horizontalRelPositions() ([]float64, []float64) {
 
 	for i, c := range b.LayoutChildren {
 		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
-		childH := child.BaseHeight() * child.HeightScale
+		childH := child.BaseHeight() * child.heightScale
 
 		var y float64
 		switch b.CrossAlignment {
@@ -136,7 +136,7 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 
 	for i, c := range b.LayoutChildren {
 		child := c.BaseElement() // ★ BaseElement() で実体を取り出す
-		h := child.BaseHeight() * child.HeightScale
+		h := child.BaseHeight() * child.heightScale
 		childHs[i] = h
 		childrenH += h
 	}
@@ -166,7 +166,7 @@ func (b *Box) verticalRelPositions() ([]float64, []float64) {
 
 	for i, c := range b.LayoutChildren {
 		child := c.BaseElement()
-		childW := child.BaseWidth() * child.WidthScale
+		childW := child.BaseWidth() * child.widthScale
 
 		var x float64
 		switch b.CrossAlignment {

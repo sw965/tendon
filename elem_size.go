@@ -26,19 +26,46 @@ func (e *Element) AbsHeight() float64 {
 
 func (e *Element) AbsWidthScale() float64 {
 	if e.Parent == nil {
-		return e.WidthScale
+		return e.widthScale
 	}
-	return e.Parent.AbsWidthScale() * e.WidthScale
+	return e.Parent.AbsWidthScale() * e.widthScale
 }
 
 func (e *Element) AbsHeightScale() float64 {
 	if e.Parent == nil {
-		return e.HeightScale
+		return e.heightScale
 	}
-	return e.Parent.AbsHeightScale() * e.HeightScale
+	return e.Parent.AbsHeightScale() * e.heightScale
+}
+
+func (e *Element) SetWidthScale(s float64) {
+    if e.widthScale == s {
+        return
+    }
+    e.widthScale = s
+    e.markAllScaleDirty()
+}
+
+func (e *Element) SetHeightScale(s float64) {
+    if e.heightScale == s {
+        return
+    }
+    e.heightScale = s
+    e.markAllScaleDirty()
 }
 
 func (e *Element) SetScale(s float64) {
-	e.WidthScale = s
-	e.HeightScale = s
+    if e.widthScale == s && e.heightScale == s {
+        return
+    }
+    e.widthScale = s
+    e.heightScale = s
+    e.markAllScaleDirty()
+}
+
+func (e *Element) markAllScaleDirty() {
+    e.isScaleDirty = true
+    for _, child := range e.Children {
+        child.BaseElement().markAllScaleDirty()
+    }
 }

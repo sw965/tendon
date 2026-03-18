@@ -12,11 +12,11 @@ import (
 // TODO gridの設計を考えておく。枠と中身を切り分ける？
 type Grid struct {
 	*Element
-	Rows           int
-	Cols           int
-	CellW          float64
-	CellH          float64
-	Gap            float64
+	Rows  int
+	Cols  int
+	CellW float64
+	CellH float64
+	Gap   float64
 	// TODO 二次元にするか検討する
 	LayoutChildren Components
 }

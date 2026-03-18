@@ -83,26 +83,35 @@ func (e *Element) Overlaps(other Component) bool {
 		return false
 	}
 
+	e.resolveDirtyScale()
+	t.resolveDirtyScale()
+	
 	if len(e.CircleColliders) > 0 && len(t.CircleColliders) > 0 {
-		// ⭕️ 追加: 双方のスケール値を取得（幅と高さで大きい方を採用）
-		eScale := math.Max(e.AbsWidthScale(), e.AbsHeightScale())
-		tScale := math.Max(t.AbsWidthScale(), t.AbsHeightScale())
-
-		for _, mc := range e.CircleColliders {
-			mx, my := e.LocalPosToAbsPos(mc.LocalX, mc.LocalY)
-			// ⭕️ 半径にスケールを適用
-			mRadius := mc.Radius * eScale
-
+		for _, ec := range e.CircleColliders {
+			ex, ey := e.LocalPosToAbsPos(ec.LocalX, ec.LocalY)
 			for _, tc := range t.CircleColliders {
 				tx, ty := t.LocalPosToAbsPos(tc.LocalX, tc.LocalY)
-				// ⭕️ 半径にスケールを適用
-				tRadius := tc.Radius * tScale
 
-				dx, dy := mx-tx, my-ty
+				// 2つの円の中心のx座標とy座標のズレをそれぞれ計算
+				dx, dy := ex-tx, ey-ty
+
+				// 【円と円の当たり判定（重なり判定）】
+				// 1. 円Aの中心 (ex, ey) と、円Bの中心 (tx, ty) を結ぶ1本の直線を引く。
+				//    この直線の長さを「 k 」とする。
+				//
+				// 2. 次に、この直線 k を「斜辺」とする直角三角形を思い浮かべる。
+				//    円Aの中心から真横に「 dx 」だけ進み、そこから真縦に「 dy 」だけ進むと、
+				//    円Bの中心に到着し、直角三角形が完成する。
+				//
+				// 3. ピタゴラスの定理により、(dx * dx) + (dy * dy) = (k の 2乗) になる。
+				//    なお (k の 2乗) の 変数名はdistSqである。
+				//
+				// 4. 2つの円が重なっている状態とは、2つの円の中心を結んだ 直線 k が
+				//    2つの円の半径の合計以下のとき (k <= 円Aの半径 + 円Bの半径)
+				//    ここでは、kの2乗 <= (円Aの半径 + 円Bの半径)の2乗 で判定する
 				distSq := dx*dx + dy*dy
-				// ⭕️ スケール済みの半径同士で比較する
-				radSum := mRadius + tRadius
-				if distSq <= radSum*radSum {
+				rSum := ec.Radius + tc.Radius
+				if distSq <= rSum*rSum {
 					return true
 				}
 			}

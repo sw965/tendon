@@ -183,7 +183,7 @@ func (g *Gauge) Refresh() {
 	// またBarはBaseの子要素であり、Baseの画像に重なるように描写されるため
 	// WidthScaleが小さくなると、Baseの画像がその分だけむき出しになるため
 	// パーセンテージが減った分の量も、Baseの画像の色で判別出来る設計になっている
-	g.Bar.WidthScale = math.Max(0, math.Min(percent, 1.0))
+	g.Bar.SetWidthScale(math.Max(0, math.Min(percent, 1.0)))
 	if g.OnSync != nil {
 		g.OnSync(g)
 	}

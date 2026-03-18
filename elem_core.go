@@ -33,10 +33,11 @@ type Element struct {
 	XRelativeToParent float64
 	YRelativeToParent float64
 
-	Image       *ebiten.Image
-	WidthScale  float64
-	HeightScale float64
-	Filter      ebiten.Filter
+	Image        *ebiten.Image
+	widthScale   float64
+	heightScale  float64
+	isScaleDirty bool
+	Filter       ebiten.Filter
 
 	Visible     bool
 	Enabled     bool
@@ -63,7 +64,7 @@ type Element struct {
 	isJustMoveFinished bool
 	EasingFunc         EasingFunc
 
-	// カプセル化の検討
+	// TODO カプセル化の検討
 	Children           Components
 	Parent             *Element
 	childrenOrderDirty bool
@@ -74,6 +75,7 @@ type Element struct {
 	AnchorY         float64
 	Shape           Shape
 	CircleColliders []CircleCollider
+	rebuildCollider func()
 }
 
 func NewElement() *Element {
@@ -84,6 +86,7 @@ func NewElement() *Element {
 		AnchorX:            0.5,
 		AnchorY:            0.5,
 		childrenOrderDirty: true,
+		isScaleDirty:       false,
 	}
 	e.SetScale(1.0)
 	return e
@@ -95,6 +98,7 @@ func (e *Element) Update() {
 	}
 
 	e.sortChildren()
+	// TODO ここでコピーする？
 
 	e.isJustMoveFinished = false
 	if e.isMoving {
@@ -135,6 +139,7 @@ func (e *Element) Draw(screen *ebiten.Image) {
 		screen.DrawImage(e.Image, op)
 	}
 
+	// ここのコードの意図は、Element.Updateを参照
 	e.sortChildren()
 	cc := make(Components, len(e.Children))
 	copy(cc, e.Children)
@@ -210,11 +215,11 @@ func (e *Element) RelGeoM() ebiten.GeoM {
 	// 画像のアンカー位置を原点(0,0)とみなす
 	m.Translate(-w*e.AnchorX, -h*e.AnchorY)
 	// 原点 を中心としたスケール(縮小・拡大)の適用
-	m.Scale(e.WidthScale, e.HeightScale)
+	m.Scale(e.widthScale, e.heightScale)
 	// 原点 を中心とした回転の適用
 	m.Rotate(e.Rotation)
 
-	m.Translate(w*e.AnchorX*e.WidthScale, h*e.AnchorY*e.HeightScale)
+	m.Translate(w*e.AnchorX*e.widthScale, h*e.AnchorY*e.heightScale)
 	// 親から見た相対位置に移動する
 	m.Translate(e.XRelativeToParent, e.YRelativeToParent)
 	return m
@@ -226,4 +231,14 @@ func (e *Element) AbsGeoM() ebiten.GeoM {
 		m.Concat(e.Parent.AbsGeoM())
 	}
 	return m
+}
+
+func (e *Element) resolveDirtyScale() {
+	if !e.isScaleDirty {
+		return
+	}
+	if e.rebuildCollider != nil {
+		e.rebuildCollider()
+	}
+	e.isScaleDirty = false
 }

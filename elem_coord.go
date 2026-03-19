@@ -1,9 +1,5 @@
 package tendon
 
-import (
-	"math"
-)
-
 // AbsPos は要素の「左上」の画面上の絶対座標を返します。
 func (e *Element) AbsPos() (float64, float64) {
 	m := e.AbsGeoM()
@@ -62,15 +58,18 @@ func (e *Element) BoundingBox() (float64, float64, float64, float64) {
 	m := e.AbsGeoM()
 	w, h := e.BaseWidth(), e.BaseHeight()
 
-	p1x, p1y := m.Apply(0, 0)
-	p2x, p2y := m.Apply(w, 0)
-	p3x, p3y := m.Apply(0, h)
-	p4x, p4y := m.Apply(w, h)
+	// 画像の左上の絶対座標を取得
+	topLeftX, topLeftY := m.Apply(0, 0)
+	// 画像の右上の絶対座標を取得
+	topRightX, topRightY := m.Apply(w, 0)
+	// 画像の左下の絶対座標を取得
+	bottomLeftX, bottomLeftY := m.Apply(0, h)
+	// 画像の右下の絶対座標を取得
+	bottomRightX, bottomRightY := m.Apply(w, h)
 
-	minX := math.Min(math.Min(p1x, p2x), math.Min(p3x, p4x))
-	maxX := math.Max(math.Max(p1x, p2x), math.Max(p3x, p4x))
-	minY := math.Min(math.Min(p1y, p2y), math.Min(p3y, p4y))
-	maxY := math.Max(math.Max(p1y, p2y), math.Max(p3y, p4y))
-
-	return minX, minY, maxX, maxY
+    minX := min(topLeftX, topRightX, bottomLeftX, bottomRightX)
+	maxX := max(topLeftX, topRightX, bottomLeftX, bottomRightX)
+    minY := min(topLeftY, topRightY, bottomLeftY, bottomRightY)
+    maxY := max(topLeftY, topRightY, bottomLeftY, bottomRightY)
+    return minX, minY, maxX, maxY
 }

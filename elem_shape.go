@@ -147,7 +147,9 @@ func (e *Element) AsCircle(borderColor color.Color, borderWidth float32) {
 	if e.Image == nil {
 		return
 	}
-	e.Image = CreateCircularImage(e.Image, borderColor, borderWidth)
+	newImg := CreateCircularImage(e.Image, borderColor, borderWidth)
+	e.Image.Dispose() 
+	e.Image = newImg
 	e.Shape = &Circle{Radius: 0}
 
 	e.rebuildCollider = func() {

@@ -14,6 +14,7 @@ func CreateCircularImage(baseImg *ebiten.Image, borderColor color.Color, borderW
 
 	// baseImgと同じ幅と高さの完全に透明な空の画像を生成する
 	canvas := ebiten.NewImage(width, height)
+
 	centerX := float32(width) / 2
 	centerY := float32(height) / 2
 	// TODO 後でコメントを書く？
@@ -27,6 +28,7 @@ func CreateCircularImage(baseImg *ebiten.Image, borderColor color.Color, borderW
 
 	// 再度、baseImgと同じ幅と高さの完全に透明な画像を生成する
 	innerCircleImg := ebiten.NewImage(width, height)
+	defer innerCircleImg.Dispose()
 	// canvasの円よりも小さめに作るために半径を小さくする
 	innerRadius := radius - borderWidth
 	// canvasの円よりも小さい円の白の染まった画像を生成する

@@ -73,7 +73,7 @@ func TestIsometricBoard(t *testing.T) {
 	boardCnt := tendon.NewElement()
 	boardCnt.XRelativeToParent = 400
 	boardCnt.YRelativeToParent = 300
-	boardCnt.heightScale = 0.5 // ★ ここで縦を半分に潰して「斜め視点」を作る！
+	boardCnt.SetHeightScale(0.5) // ★ ここで縦を半分に潰して「斜め視点」を作る！
 	boardCnt.AnchorX, boardCnt.AnchorY = 0.5, 0.5
 	root.AppendChild(boardCnt)
 

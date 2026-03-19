@@ -30,8 +30,8 @@ type Counter struct {
 	EasingFunc EasingFunc
 	FormatFunc func(float64) string
 
-	isAnimating    bool // 現在アニメーション中（Current != Target）か
-	isJustFinished bool // このフレームでアニメーションが完了したか
+	isAnimating    bool
+	isJustFinished bool
 }
 
 func newCounter(size, init float64) (*Counter, error) {

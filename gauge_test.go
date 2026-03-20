@@ -40,11 +40,11 @@ func NewExplosiveGauge(w, h, max float64, barColor color.Color) (*ExplosiveGauge
 }
 
 func (eg *ExplosiveGauge) Update() {
-	oldScale := eg.Bar.WidthScale
+	oldScale := eg.Bar.BaseWidthScale()
 
 	eg.Gauge.Update()
 
-	newScale := eg.Bar.WidthScale
+	newScale := eg.Bar.BaseWidthScale()
 
 	if newScale < oldScale {
 		for i := 0; i < 3; i++ {

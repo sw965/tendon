@@ -101,7 +101,7 @@ func (c *Counter) Update() {
 
 func (c *Counter) updateLabel() {
 	txt := c.FormatFunc(c.Current)
-	c.Label.SetText(txt, c.Label.Font().Source, c.Label.Font().Size)
+	c.Label.SetText(c.Label.Font().Source, c.Label.Font().Size, c.Label.color, txt)
 }
 
 // TODO gaugeで左から減るのか右から減るのかを指定出来るようにしておく？

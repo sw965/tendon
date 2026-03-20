@@ -7,7 +7,7 @@ func (e *Element) calcHorizontalAlign(targetAbsX, targetWidth float64, align Ali
 	case AlignStart:
 		return targetAbsX
 	case AlignCenter:
-		return targetAbsX + (targetWidth-e.AbsWidth()) / 2
+		return targetAbsX + (targetWidth-e.AbsWidth())/2
 	case AlignEnd:
 		return targetAbsX + targetWidth - e.AbsWidth()
 	default:

@@ -120,8 +120,8 @@ func (e *Element) SetRectApprox(cols, rows int, overlapRatio, protrusionRatio fl
 		}
 
 		colliders, err := NewRectCircleColliders(
-			scaledW, scaledH, 
-			actualCols, actualRows, overlapRatio, protrusionRatio, 
+			scaledW, scaledH,
+			actualCols, actualRows, overlapRatio, protrusionRatio,
 			e.AnchorX, e.AnchorY,
 		)
 
@@ -148,7 +148,7 @@ func (e *Element) AsCircle(borderColor color.Color, borderWidth float32) {
 		return
 	}
 	newImg := CreateCircularImage(e.Image, borderColor, borderWidth)
-	e.Image.Dispose() 
+	e.Image.Dispose()
 	e.Image = newImg
 	e.Shape = &Circle{Radius: 0}
 
@@ -162,8 +162,12 @@ func (e *Element) AsCircle(borderColor color.Color, borderWidth float32) {
 		cx := scaledW/2 - (scaledW * e.AnchorX)
 		cy := scaledH/2 - (scaledH * e.AnchorY)
 
-		if wScale != 0 { cx /= wScale }
-		if hScale != 0 { cy /= hScale }
+		if wScale != 0 {
+			cx /= wScale
+		}
+		if hScale != 0 {
+			cy /= hScale
+		}
 
 		e.CircleColliders = []CircleCollider{{LocalX: cx, LocalY: cy, Radius: r}}
 	}

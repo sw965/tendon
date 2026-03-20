@@ -52,15 +52,17 @@ func TestColorPaletteExtended(t *testing.T) {
 			continue
 		}
 
-		cell.Image = ebiten.NewImage(int(cellW), int(cellH))
-		cell.Image.Fill(info.c)
+		cellBase := cell.BaseElement()
+
+		cellBase.Image = ebiten.NewImage(int(cellW), int(cellH))
+		cellBase.Image.Fill(info.c)
 
 		l, err := tendon.NewLabel(info.name, 20)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		cell.AppendChild(l)
+		cellBase.AppendChild(l)
 		l.PlaceCenterOf(cell)
 	}
 

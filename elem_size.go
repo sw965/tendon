@@ -24,6 +24,14 @@ func (e *Element) AbsHeight() float64 {
 	return e.BaseHeight() * scale
 }
 
+func (e *Element) BaseWidthScale() float64 {
+	return e.widthScale
+}
+
+func (e *Element) BaseHeightScale() float64 {
+	return e.heightScale
+}
+
 func (e *Element) AbsWidthScale() float64 {
 	if e.Parent == nil {
 		return e.widthScale
@@ -39,33 +47,33 @@ func (e *Element) AbsHeightScale() float64 {
 }
 
 func (e *Element) SetWidthScale(s float64) {
-    if e.widthScale == s {
-        return
-    }
-    e.widthScale = s
-    e.markAllScaleDirty()
+	if e.widthScale == s {
+		return
+	}
+	e.widthScale = s
+	e.markAllScaleDirty()
 }
 
 func (e *Element) SetHeightScale(s float64) {
-    if e.heightScale == s {
-        return
-    }
-    e.heightScale = s
-    e.markAllScaleDirty()
+	if e.heightScale == s {
+		return
+	}
+	e.heightScale = s
+	e.markAllScaleDirty()
 }
 
 func (e *Element) SetScale(s float64) {
-    if e.widthScale == s && e.heightScale == s {
-        return
-    }
-    e.widthScale = s
-    e.heightScale = s
-    e.markAllScaleDirty()
+	if e.widthScale == s && e.heightScale == s {
+		return
+	}
+	e.widthScale = s
+	e.heightScale = s
+	e.markAllScaleDirty()
 }
 
 func (e *Element) markAllScaleDirty() {
-    e.isScaleDirty = true
-    for _, child := range e.Children {
-        child.BaseElement().markAllScaleDirty()
-    }
+	e.isScaleDirty = true
+	for _, child := range e.Children {
+		child.BaseElement().markAllScaleDirty()
+	}
 }

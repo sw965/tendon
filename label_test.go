@@ -22,7 +22,7 @@ func (g *LabelTestGame) Update() error {
 		newSize := float64(16 + ((g.counter/60)%3)*16)
 		newText := fmt.Sprintf("Size: %.0fpx / Frame: %d", newSize, g.counter)
 
-		g.dynamic.SetText(newText, g.dynamic.Font().Source, newSize)
+		g.dynamic.SetText(g.dynamic.Font().Source, newSize, g.dynamic.Color(), newText)
 	}
 	return nil
 }

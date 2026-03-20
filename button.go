@@ -59,6 +59,6 @@ func (b *Button) SetText(txt string) {
 		fontSize = fontSize * (maxWidth / txtW)
 	}
 
-	b.Label.SetText(txt, b.Label.Font().Source, fontSize)
+	b.Label.SetText(b.Label.Font().Source, fontSize, b.Label.color, txt)
 	b.Label.PlaceCenterOf(b.Element)
 }

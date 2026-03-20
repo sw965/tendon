@@ -67,9 +67,9 @@ func (e *Element) BoundingBox() (float64, float64, float64, float64) {
 	// 画像の右下の絶対座標を取得
 	bottomRightX, bottomRightY := m.Apply(w, h)
 
-    minX := min(topLeftX, topRightX, bottomLeftX, bottomRightX)
+	minX := min(topLeftX, topRightX, bottomLeftX, bottomRightX)
 	maxX := max(topLeftX, topRightX, bottomLeftX, bottomRightX)
-    minY := min(topLeftY, topRightY, bottomLeftY, bottomRightY)
-    maxY := max(topLeftY, topRightY, bottomLeftY, bottomRightY)
-    return minX, minY, maxX, maxY
+	minY := min(topLeftY, topRightY, bottomLeftY, bottomRightY)
+	maxY := max(topLeftY, topRightY, bottomLeftY, bottomRightY)
+	return minX, minY, maxX, maxY
 }

@@ -85,7 +85,7 @@ func (e *Element) Overlaps(other Component) bool {
 
 	e.resolveDirtyScale()
 	t.resolveDirtyScale()
-	
+
 	if len(e.CircleColliders) > 0 && len(t.CircleColliders) > 0 {
 		for _, ec := range e.CircleColliders {
 			ex, ey := e.LocalPosToAbsPos(ec.LocalX, ec.LocalY)

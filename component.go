@@ -5,7 +5,9 @@ import (
 )
 
 type Component interface {
+	// TODO 戻り値にerrorを返すようにする？
 	Update()
+	// TODO 戻り値にerrorを返すようにする？
 	Draw(screen *ebiten.Image)
 	BaseElement() *Element
 }

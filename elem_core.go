@@ -29,7 +29,7 @@ import (
 //	    見た目だけで当たり判定を下に貫通させたい場合や、当たり判定計算の負荷を下げたい場合に使用します。
 //	    （例：ボタンの上に乗っているテキスト、複数のボタンを並べるための透明なレイアウト用親コンテナ）。
 type Element struct {
-	Id                int
+	ID                int
 	XRelativeToParent float64
 	YRelativeToParent float64
 

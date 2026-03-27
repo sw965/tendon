@@ -10,6 +10,7 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 )
 
+// TODO このフォントは日本語が文字化けするため、日本語にも対応できるフォントに変える
 func NewDefaultFontSource() (*text.GoTextFaceSource, error) {
 	return text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 }
